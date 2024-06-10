@@ -41,6 +41,7 @@ services:
       - AUTH_TYPE=scram-sha-256
       - POOL_MODE=session
       - ADMIN_USERS=moodledbuser
+      - IGNORE_STARTUP_PARAMETERS=extra_float_digits,options
     ports:
       - "5432:5432"
     depends_on:
