@@ -11,17 +11,41 @@ services:
       - SESSION_CACHE_PORT=6379
       - AUTO_UPDATE_MOODLE=false
       - UPDATE_MOODLE_CODE=false
+      - DB_TYPE=pgsql
+      - DB_HOST=pgbouncer
+      - DB_PORT=5432
+      - DB_NAME=moodle
+      - DB_USER=moodledbuser
+      - DB_PASS=moodledbpass
+      - DB_DBHANDLEOPTIONS=true
+      - DB_FETCHBUFFERSIZE=0
     depends_on:
       - postgres
       - redis
+      - pgbouncer
 
   postgres:
     image: postgres:alpine
     environment:
-      - POSTGRES_PASSWORD=moodle
-      - POSTGRES_USER=moodle
+      - POSTGRES_PASSWORD=moodledbpass
+      - POSTGRES_USER=moodledbuser
       - POSTGRES_DB=moodle
-        
+
+  pgbouncer:
+    image: edoburu/pgbouncer
+    environment:
+      - DB_USER=moodledbuser
+      - DB_PASSWORD=moodledbpass
+      - DB_HOST=postgres
+      #- DB_NAME=moodle
+      - AUTH_TYPE=scram-sha-256
+      - POOL_MODE=session
+      - ADMIN_USERS=moodledbuser
+    ports:
+      - "5432:5432"
+    depends_on:
+      - postgres
+
   redis:
     image: redis/redis-stack-server
 
