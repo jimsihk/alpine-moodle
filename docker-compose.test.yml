@@ -32,7 +32,7 @@ services:
       - POSTGRES_DB=moodle
 
   pgbouncer:
-    image: bitnami/pgbouncer
+    image: bitnami/pgbouncer:1.19.1
     environment:
       - POSTGRESQL_USERNAME=moodledbuser
       - POSTGRESQL_PASSWORD=moodledbpass
@@ -41,7 +41,7 @@ services:
       - PGBOUNCER_AUTH_TYPE=scram-sha-256
       - PGBOUNCER_POOL_MODE=session
       #- ADMIN_USERS=moodledbuser
-      - PGBOUNCER_IGNORE_STARTUP_PARAMETERS=options
+      - PGBOUNCER_IGNORE_STARTUP_PARAMETERS=options,extra_float_digits
       - PGBOUNCER_PORT=5432
     ports:
       - "5432:5432"
