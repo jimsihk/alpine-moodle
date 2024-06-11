@@ -32,7 +32,7 @@ services:
       - POSTGRES_DB=moodle
 
   pgbouncer:
-    image: bitnami/pgbouncer:1.19.1
+    image: bitnami/pgbouncer:1.20.1
     environment:
       - POSTGRESQL_USERNAME=moodledbuser
       - POSTGRESQL_PASSWORD=moodledbpass
