@@ -2,11 +2,12 @@ version: '3.5'
 services:
   app:
     image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
-    build: .
+    build:
+      context: .
       args:
-        ARG_MOODLE_GIT_URL=https://github.com/lucaboesch/moodle.git
-        ARG_MOODLE_GIT_BRANCH=MDL-81804-404
-        ARG_MOODLE_GIT_COMMIT=46e82416271e5f20688ed399e7da6faed20c9e51
+        - ARG_MOODLE_GIT_URL=https://github.com/lucaboesch/moodle.git
+        - ARG_MOODLE_GIT_BRANCH=MDL-81804-404
+        - ARG_MOODLE_GIT_COMMIT=46e82416271e5f20688ed399e7da6faed20c9e51
     environment:
       - SITE_URL=http://app:8080
       - MOODLE_SITENAME=Dockerized_Moodle
