@@ -2,7 +2,13 @@ version: '3.5'
 services:
   app:
     image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
-    build: .
+    build:
+      context: .
+      args:
+        - ARG_MOODLE_GIT_URL=https://github.com/lucaboesch/moodle.git
+        - ARG_MOODLE_GIT_BRANCH=MDL-81804-404
+        - ARG_MOODLE_GIT_COMMIT=46e82416271e5f20688ed399e7da6faed20c9e51
+        - ARG_ENABLE_GIT_CLONE=false
     environment:
       - SITE_URL=http://app:8080
       - MOODLE_SITENAME=Dockerized_Moodle
@@ -11,17 +17,43 @@ services:
       - SESSION_CACHE_PORT=6379
       - AUTO_UPDATE_MOODLE=false
       - UPDATE_MOODLE_CODE=false
+      - DB_TYPE=pgsql
+      - DB_HOST=pgbouncer
+      - DB_PORT=5432
+      - DB_NAME=moodle
+      - DB_USER=moodledbuser
+      - DB_PASS=moodledbpass
+      - DB_DBHANDLEOPTIONS=true
+      - DB_FETCHBUFFERSIZE=0
     depends_on:
       - postgres
       - redis
+      - pgbouncer
 
   postgres:
     image: postgres:alpine
     environment:
-      - POSTGRES_PASSWORD=moodle
-      - POSTGRES_USER=moodle
+      - POSTGRES_PASSWORD=moodledbpass
+      - POSTGRES_USER=moodledbuser
       - POSTGRES_DB=moodle
-        
+
+  pgbouncer:
+    image: bitnami/pgbouncer:1.20.1
+    environment:
+      - POSTGRESQL_USERNAME=moodledbuser
+      - POSTGRESQL_PASSWORD=moodledbpass
+      - POSTGRESQL_HOST=postgres
+      - PGBOUNCER_DATABASE=moodle
+      - PGBOUNCER_AUTH_TYPE=scram-sha-256
+      - PGBOUNCER_POOL_MODE=session
+      #- ADMIN_USERS=moodledbuser
+      - PGBOUNCER_IGNORE_STARTUP_PARAMETERS=options,extra_float_digits
+      - PGBOUNCER_PORT=5432
+    ports:
+      - "5432:5432"
+    depends_on:
+      - postgres
+
   redis:
     image: redis/redis-stack-server
 
