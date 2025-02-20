@@ -267,7 +267,7 @@ patch_publicpaths() {
     fi
   fi
 }
-patch_publicpaths
+#patch_publicpaths
 
 # Update Moodle
 if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
