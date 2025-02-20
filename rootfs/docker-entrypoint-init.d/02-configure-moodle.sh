@@ -248,23 +248,16 @@ fi
 # Avoid writing the config file
 chmod 440 "${WEB_PATH}"/config.php
 
-# Fix publicpaths check to point to the internal container on port 8080
+# Fix publicpaths check (deprecated, keep for upgrade capability)
 patch_publicpaths() {
   PUBLICPATHS_FILE="${WEB_PATH}"/lib/classes/check/environment/publicpaths.php
-  if [ -n "$1" ]; then
+  set +eo pipefail
+  grep "wwwroot\ \. \"\:8080\"" "$PUBLICPATHS_FILE" > /dev/null
+  GREPRESULT=$?
+  set -eo pipefail
+  if [ "$GREPRESULT" -eq 0 ]; then
     echo "Reverting publicpaths.php"
     sed -i 's/wwwroot\ \. \"\:8080\"/wwwroot/g' "$PUBLICPATHS_FILE"
-  else
-    set +eo pipefail
-    grep "wwwroot\ \. \"\:8080\"" "$PUBLICPATHS_FILE" > /dev/null
-    GREPRESULT=$?
-    set -eo pipefail
-    if [ "$GREPRESULT" -eq 1 ]; then
-      echo "Patching publicpaths.php"
-      sed -i 's/wwwroot/wwwroot\ \. \"\:8080\"/g' "$PUBLICPATHS_FILE"
-    else
-      echo "Skipped patching publicpaths.php"
-    fi
   fi
 }
 patch_publicpaths
@@ -286,12 +279,10 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
   if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then
     if [ -z "$UPDATE_MOODLE_CODE" ] || [ "$UPDATE_MOODLE_CODE" = true ]; then
       echo "Checking moodle code version..."
-      patch_publicpaths 'revert'
       GIT_TRACE=1
       git -C "${WEB_PATH}" fetch origin "$MODOLE_GIT_BRANCH" --depth=1 && git -C "${WEB_PATH}" checkout FETCH_HEAD -B "$MODOLE_GIT_BRANCH"
       GIT_TRACE=0
       /usr/libexec/moodle/clean-moodle-code "${WEB_PATH}"
-      patch_publicpaths
     fi
   fi
   php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/upgrade.php --non-interactive --allow-unstable
