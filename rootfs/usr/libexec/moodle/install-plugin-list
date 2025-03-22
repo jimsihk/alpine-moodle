@@ -68,11 +68,15 @@ install_plugin() {
         mv "${script_moodle_plugin_component_dest}" "${script_moodle_plugin_component_bak_dest}"
     fi
     # unzip plugin in destination directory
-    echo "Uncompressing to: ${script_moodle_plugin_component_tmp_dest}"
-    unzip -qo "${script_moodle_plugin_component_zip}" -d "${script_moodle_plugin_component_tmp_dest}"
+    if ! test -d "${script_moodle_plugin_component_tmp_dest}"; then
+        echo "Uncompressing to: ${script_moodle_plugin_component_tmp_dest}"
+        unzip -qo "${script_moodle_plugin_component_zip}" -d "${script_moodle_plugin_component_tmp_dest}"
+    else
+        echo "Uncompressed plugin already exists: ${script_moodle_plugin_component_zip}"
+    fi
     plugin_base_dirname=$(basename "${script_moodle_plugin_component_tmp_dest}"/$(ls -d "${script_moodle_plugin_component_tmp_dest}"/* | head -n 1))
     echo "Installing to: ${script_moodle_plugin_component_dest}"
-    mv "${script_moodle_plugin_component_tmp_dest}/${plugin_base_dirname}/" "${script_moodle_plugin_component_dest}"
+    cp -pR "${script_moodle_plugin_component_tmp_dest}/${plugin_base_dirname}/" "${script_moodle_plugin_component_dest}"
 }
 
 get_plugin_url_md5_dest() {
