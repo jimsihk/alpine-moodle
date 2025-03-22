@@ -68,7 +68,7 @@ install_plugin() {
         mv "${script_moodle_plugin_component_dest}" "${script_moodle_plugin_component_bak_dest}"
     fi
     # unzip plugin in destination directory
-    if [ -z "$(find "${script_moodle_plugin_component_tmp_dest}" -maxdepth 1 -not -name ".*" -not -path "${script_moodle_plugin_component_tmp_dest}" ]; then
+    if [ -z "$(find "$script_moodle_plugin_component_tmp_dest" -maxdepth 1 -not -name ".*" -not -path "$script_moodle_plugin_component_tmp_dest")" ]; then
         echo "Uncompressing to: ${script_moodle_plugin_component_tmp_dest}"
         unzip -qo "${script_moodle_plugin_component_zip}" -d "${script_moodle_plugin_component_tmp_dest}"
     else
