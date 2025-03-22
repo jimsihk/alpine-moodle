@@ -105,7 +105,8 @@ ENV MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
 ENV ALLOW_INCOMPATIBLE_PLUGIN=${ARG_ALLOW_INCOMPATIBLE_PLUGIN}
 
 # Download Moodle source codes and plugin source codes
-RUN /usr/libexec/moodle/download-moodle-code \
+RUN --mount=type=cache,target=/var/www/html \
+    /usr/libexec/moodle/download-moodle-code \
     # Create a backup of custom code
     && cp -p /var/www/html/admin/cli/isinstalled.php /usr/libexec/moodle/
 
