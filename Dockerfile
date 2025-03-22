@@ -108,3 +108,6 @@ ENV ALLOW_INCOMPATIBLE_PLUGIN=${ARG_ALLOW_INCOMPATIBLE_PLUGIN}
 RUN /usr/libexec/moodle/download-moodle-code \
     # Create a backup of custom code
     && cp -p /var/www/html/admin/cli/isinstalled.php /usr/libexec/moodle/
+
+# Install custom Moodle plugins
+RUN /usr/libexec/moodle/download-moodle-plugin

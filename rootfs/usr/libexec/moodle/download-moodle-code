@@ -1,11 +1,10 @@
 #!/bin/sh
 #
 # Moodle code download script
-# Description: The script will unpack the required Moodle source codes 
-#              and plugin source codes
+# Description: The script will unpack the required Moodle source codes
+#              Plugin source codes requires to be installed separately by executing download-moodle-plugin
 #              1. Download Moodle source
 #              2. Install system plugins
-#              3. Install custom plugins
 #
 
 UTL_PATH=/usr/libexec
@@ -50,7 +49,3 @@ echo "Downloading Moodle system plugins..."
   "${MEMCACHED_PLUGIN_GIT_BRANCH}" \
   "${MEMCACHED_PLUGIN_GIT_COMMIT}" \
   "${WEB_PATH}/cache/stores/memcached/"
-
-# 3. Install custom plugins
-echo "Downloading Moodle plugins..."
-"$MOODLE_UTL_PATH"/download-moodle-plugin
