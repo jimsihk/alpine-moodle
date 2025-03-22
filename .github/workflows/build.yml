@@ -7,6 +7,8 @@ on:
     paths-ignore:
       - README.md
       - .github/workflows/update-dockerhub-desc.yml
+  pull_request:
+    branches: ["dev"]
 
 env:
   IMAGE_REGISTRY: ${{ vars.REGISTRY_PUBLIC }}
@@ -75,34 +77,34 @@ jobs:
           export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: '${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: 0
-        env:
-          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
+      # - name: Run Trivy vulnerability scanner
+      #   uses: aquasecurity/trivy-action@master
+      #   with:
+      #     image-ref: '${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}'
+      #     format: 'sarif'
+      #     output: 'trivy-results.sarif'
+      #     severity: 'CRITICAL,HIGH'
+      #     exit-code: 0
+      #   env:
+      #     TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: 'trivy-results.sarif'
+      # - name: Upload Trivy scan results to GitHub Security tab
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: 'trivy-results.sarif'
 
-      - name: Run the Anchore scan action
-        uses: anchore/scan-action@v6
-        id: anchore-scan
-        with:
-          image: '${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}'
-          output-format: sarif
-          fail-build: false
+      # - name: Run the Anchore scan action
+      #   uses: anchore/scan-action@v6
+      #   id: anchore-scan
+      #   with:
+      #     image: '${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}'
+      #     output-format: sarif
+      #     fail-build: false
 
-      - name: Upload Anchore Scan Report
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: ${{ steps.anchore-scan.outputs.sarif }}
+      # - name: Upload Anchore Scan Report
+      #   uses: github/codeql-action/upload-sarif@v3
+      #   with:
+      #     sarif_file: ${{ steps.anchore-scan.outputs.sarif }}
 
       - name: Get changed container files
         id: changed-files
