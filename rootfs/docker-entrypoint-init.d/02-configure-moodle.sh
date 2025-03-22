@@ -4,10 +4,6 @@
 #
 set -eo pipefail
 
-echo "Debug..."
-ls -l /tmp/
-ls -l /tmp/moodle/
-
 if [ -n "$SKIP_MOODLE_CONFIG" ] && [ "$SKIP_MOODLE_CONFIG" = 'true' ]; then
   echo "Skipped Moodle configuration"
   exit 0
