@@ -105,10 +105,12 @@ ENV MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
 ENV ALLOW_INCOMPATIBLE_PLUGIN=${ARG_ALLOW_INCOMPATIBLE_PLUGIN}
 
 # Download Moodle source codes and plugin source codes
+# Using docker cache mount to reduce the network traffic for repeative download, UID and GID is set to nobody (65534)
 RUN --mount=type=cache,target=/tmp/moodle,uid=65534,gid=65534 \
     /usr/libexec/moodle/download-moodle-code \
     # Create a backup of custom code
     && cp -p /var/www/html/admin/cli/isinstalled.php /usr/libexec/moodle/
 
 # Install custom Moodle plugins
-RUN /usr/libexec/moodle/download-moodle-plugin
+RUN --mount=type=cache,target=/tmp/moodle-plugins,uid=65534,gid=65534 \
+    /usr/libexec/moodle/download-moodle-plugin
