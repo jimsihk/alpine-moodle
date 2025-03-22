@@ -23,4 +23,3 @@ if [ -n "${MOODLE_PLUGIN_LIST}" ]; then
     fi
   fi
 fi
-rm -rf /tmp/moodle-plugins
