@@ -72,10 +72,22 @@ jobs:
           username: ${{ secrets.QUAYIO_USERNAME }}
           password: ${{ secrets.QUAYIO_TOKEN }}
 
-      - name: Build and Test
+      - name: Try build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}
+          provenance: false
+          load: true
+          build-args: |
+            ARG_MOODLE_PLUGIN_LIST=report_benchmark
+            ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+
+      - name: Test
         run: |
           export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
+          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
 
       # - name: Run Trivy vulnerability scanner
       #   uses: aquasecurity/trivy-action@master
@@ -125,7 +137,8 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.prepare.outputs.tags }}
+          # tags: ${{ steps.prepare.outputs.tags }}
+          tags: ${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}
           platforms: ${{ steps.prepare.outputs.platforms }}
           provenance: false
 
@@ -135,7 +148,8 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.prepare.outputs.tags_slim }}
+          # tags: ${{ steps.prepare.outputs.tags_slim }}
+          tags: ${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}
           platforms: ${{ steps.prepare.outputs.platforms }}
           provenance: false
           build-args: |
