@@ -19,16 +19,18 @@ MOODLE_UTL_PATH=$UTL_PATH/moodle
 #   the functionality of git pull from source
 echo "Downloading Moodle..."
 TEMP_MOODLE_PATH='/tmp/moodle'
-if [ -d "${TEMP_MOODLE_PATH}" ]; then
-  rm -rf "${TEMP_MOODLE_PATH}";
-fi
+# No need to clean previous folder as used docker cache mount
+# if [ -d "${TEMP_MOODLE_PATH}" ]; then
+#   rm -rf "${TEMP_MOODLE_PATH}";
+# fi
 "$UTL_PATH"/clone-from-git "${MOODLE_GIT_URL}" "${MODOLE_GIT_BRANCH}" "${MOODLE_GIT_COMMIT}" "${TEMP_MOODLE_PATH}"
 # Remove unused files which are difficult to hide by Nginx config
 "$MOODLE_UTL_PATH"/clean-moodle-code "${TEMP_MOODLE_PATH}"
 echo "Copying from ${TEMP_MOODLE_PATH} to ${WEB_PATH}..."
 cp -paR "${TEMP_MOODLE_PATH}"/. "$WEB_PATH"/
-echo "Cleaning up ${TEMP_MOODLE_PATH}..."
-rm -rf "${TEMP_MOODLE_PATH}"
+# No need to clean download folder as used docker cache mount
+# echo "Cleaning up ${TEMP_MOODLE_PATH}..."
+# rm -rf "${TEMP_MOODLE_PATH}"
 # Verify Moodle version if same as specified in DockerFile
 "$MOODLE_UTL_PATH"/check-moodle-version "${MOODLE_GIT_COMMIT}"
 
