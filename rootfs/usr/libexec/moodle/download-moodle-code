@@ -9,50 +9,57 @@
 
 UTL_PATH=/usr/libexec
 MOODLE_UTL_PATH=$UTL_PATH/moodle
+TEMP_MOODLE_PATH='/tmp/moodle'
 
 # 1. Download Moodle source
 #
 # Install from Git for easier upgrade in the future
 # - Using temporary storage to store the Git repo and copy back to working directory 
-#   to avoid detached head and failure due to files exist in the directory
+#   to support build cache and avoid detached head and failure due to files exist in the directory
 # - Git depth is set and using single branch to reduce docker size while keeping
 #   the functionality of git pull from source
 echo "Downloading Moodle..."
-TEMP_MOODLE_PATH='/tmp/moodle'
-# No need to clean previous folder as used docker cache mount
-# if [ -d "${TEMP_MOODLE_PATH}" ]; then
-#   rm -rf "${TEMP_MOODLE_PATH}";
-# fi
 # As docker cache mount is used, only perform dowload when cache directory is empty
-if [ ! -f "${TEMP_MOODLE_PATH}/index.php" ]; then
+if [ ! -f "${TEMP_MOODLE_PATH}/version.php" ]; then
   "$UTL_PATH"/clone-from-git "${MOODLE_GIT_URL}" "${MODOLE_GIT_BRANCH}" "${MOODLE_GIT_COMMIT}" "${TEMP_MOODLE_PATH}"
 else
-  echo "Skipped downloading"
+  echo "Skipped download as cache exist"
 fi
 # Remove unused files which are difficult to hide by Nginx config
 "$MOODLE_UTL_PATH"/clean-moodle-code "${TEMP_MOODLE_PATH}"
-echo "Copying from ${TEMP_MOODLE_PATH} to ${WEB_PATH}..."
-cp -paR "${TEMP_MOODLE_PATH}"/. "$WEB_PATH"/
-# No need to clean download folder as used docker cache mount
-# echo "Cleaning up ${TEMP_MOODLE_PATH}..."
-# rm -rf "${TEMP_MOODLE_PATH}"
-# Verify Moodle version if same as specified in DockerFile
-"$MOODLE_UTL_PATH"/check-moodle-version "${MOODLE_GIT_COMMIT}"
 
 # 2. Install system plugins
 #
+# Download into temporary storage first for build cache
+echo "Downloading Moodle system plugins..."
+
 # Install plugin for Redis Sentinel cache store
 # Reference: https://github.com/catalyst/moodle-cachestore_redissentinel
-echo "Downloading Moodle system plugins..."
-"$MOODLE_UTL_PATH"/install-git-plugin \
-  "${REDISSENTINEL_PLUGIN_GIT_URL}"  \
-  "${REDISSENTINEL_PLUGIN_GIT_BRANCH}" \
-  "${REDISSENTINEL_PLUGIN_GIT_COMMIT}" \
-  "${WEB_PATH}/cache/stores/redissentinel/"
+echo "Downloading redissentinel..."
+if [ ! -f "${TEMP_MOODLE_PATH}/cache/stores/redissentinel/version.php" ]; then
+  "$MOODLE_UTL_PATH"/install-git-plugin \
+    "${REDISSENTINEL_PLUGIN_GIT_URL}"  \
+    "${REDISSENTINEL_PLUGIN_GIT_BRANCH}" \
+    "${REDISSENTINEL_PLUGIN_GIT_COMMIT}" \
+    "${TEMP_MOODLE_PATH}/cache/stores/redissentinel/"
+else
+  echo "Skipped download as cache exist"
+fi
 # Install plugin for memcached cache store which was removed from Moodle core since 4.2
 # Reference: https://tracker.moodle.org/browse/MDL-77161
-"$MOODLE_UTL_PATH"/install-git-plugin \
-  "${MEMCACHED_PLUGIN_GIT_URL}" \
-  "${MEMCACHED_PLUGIN_GIT_BRANCH}" \
-  "${MEMCACHED_PLUGIN_GIT_COMMIT}" \
-  "${WEB_PATH}/cache/stores/memcached/"
+echo "Downloading memcached..."
+if [ ! -f "${TEMP_MOODLE_PATH}/cache/stores/memcached/version.php" ]; then
+  "$MOODLE_UTL_PATH"/install-git-plugin \
+    "${MEMCACHED_PLUGIN_GIT_URL}" \
+    "${MEMCACHED_PLUGIN_GIT_BRANCH}" \
+    "${MEMCACHED_PLUGIN_GIT_COMMIT}" \
+    "${TEMP_MOODLE_PATH}/cache/stores/memcached/"
+else
+  echo "Skipped download as cache exist"
+fi
+
+# 3. Copy entire Moodle code folder at once
+echo "Copying from ${TEMP_MOODLE_PATH} to ${WEB_PATH}..."
+cp -paR "${TEMP_MOODLE_PATH}"/. "$WEB_PATH"/
+# Verify Moodle version if same as specified in DockerFile
+"$MOODLE_UTL_PATH"/check-moodle-version "${MOODLE_GIT_COMMIT}"
