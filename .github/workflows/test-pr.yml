@@ -39,7 +39,7 @@ jobs:
       - name: Test
         run: |
           export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
 
       - name: Try build multi-arch
         uses: docker/build-push-action@v6
