@@ -1,11 +1,11 @@
 services:
   app:
     image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
-    # build:
-    #   context: .
-    #   args:
-    #     - ARG_MOODLE_PLUGIN_LIST=report_benchmark
-    #     - ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+    build:
+      context: .
+      args:
+        - ARG_MOODLE_PLUGIN_LIST=report_benchmark
+        - ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
     environment:
       - SITE_URL=http://app:8080
       - MOODLE_SITENAME=Dockerized_Moodle
