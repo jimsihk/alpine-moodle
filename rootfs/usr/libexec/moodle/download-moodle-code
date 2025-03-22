@@ -23,7 +23,10 @@ TEMP_MOODLE_PATH='/tmp/moodle'
 # if [ -d "${TEMP_MOODLE_PATH}" ]; then
 #   rm -rf "${TEMP_MOODLE_PATH}";
 # fi
-"$UTL_PATH"/clone-from-git "${MOODLE_GIT_URL}" "${MODOLE_GIT_BRANCH}" "${MOODLE_GIT_COMMIT}" "${TEMP_MOODLE_PATH}"
+# As docker cache mount is used, only perform dowload when cache directory does not exist
+if [ ! -d "${TEMP_MOODLE_PATH}" ]; then
+  "$UTL_PATH"/clone-from-git "${MOODLE_GIT_URL}" "${MODOLE_GIT_BRANCH}" "${MOODLE_GIT_COMMIT}" "${TEMP_MOODLE_PATH}"
+fi
 # Remove unused files which are difficult to hide by Nginx config
 "$MOODLE_UTL_PATH"/clean-moodle-code "${TEMP_MOODLE_PATH}"
 echo "Copying from ${TEMP_MOODLE_PATH} to ${WEB_PATH}..."
