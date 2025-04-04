@@ -22,6 +22,7 @@ services:
       - DB_PASS=moodledbpass
       - DB_DBHANDLEOPTIONS=true
       - DB_FETCHBUFFERSIZE=0
+      - DB_DBPERSIST=true
     depends_on:
       - postgres
       - redis
