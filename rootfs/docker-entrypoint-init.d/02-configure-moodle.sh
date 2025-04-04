@@ -88,7 +88,7 @@ if [ ! -f "${WEB_PATH}"/config.php ]; then
       sed -i "/\$CFG->dboptions/a \ \ "\''dbhandlesoptions'\'" => true," "${WEB_PATH}"/config.php
     fi
     if [ "$DB_DBPERSIST" = 'true' ]; then
-      sed -i "s/'dbpersist' => 0,/'dbpersist' => 1,/" "${WEB_PATH}"/config.php
+      sed -i "s/'dbpersist' *=> *[^,]*,/'dbpersist' => 1,/" "${WEB_PATH}"/config.php
     fi
     if [ -n "$DB_HOST_REPLICA" ]; then
       if [ -n "$DB_USER_REPLICA" ] && [ -n "$DB_PASS_REPLICA" ] && [ -n "$DB_PORT_REPLICA" ]; then
