@@ -297,6 +297,3 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
 else
   echo "Skipped auto update of Moodle"
 fi
-
-#DEBUG
-cat /var/www/html/config.php
