@@ -299,4 +299,4 @@ else
 fi
 
 #DEBUG
-cat "${WEB_PATH}/config.php"
+cat /var/www/html/config.php
