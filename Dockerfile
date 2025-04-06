@@ -57,6 +57,7 @@ ENV MOODLE_GIT_URL=${ARG_MOODLE_GIT_URL} \
     DB_PASS=moodle \
     DB_PREFIX=mdl_ \
     DB_DBHANDLEOPTIONS=false \
+    DB_DBPERSIST=false \
     SSLPROXY=false \
     MOODLE_EMAIL=user@example.com \
     MOODLE_LANGUAGE=en \
