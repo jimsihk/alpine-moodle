@@ -17,6 +17,9 @@ on:
         type: string
         description: 'Increment on Moodle version to be checked, available: major, minor'
         default: minor
+      dryrun:
+        type: boolean
+        default: false
     secrets:
       RELEASE_BOT_APP_ID:
         required: true
