@@ -75,22 +75,7 @@ jobs:
           CURRENT_BRANCH=${{ steps.current_moodle.outputs.branch }}
           # Compile next branch name
           moodle_version=$(echo $CURRENT_BRANCH | grep -oE '[0-9]+')
-          #delta=${{ steps.bump.outputs.delta }}
           next_version=$((moodle_version + 1))
-          #next_version=$(awk -v n="$moodle_version" -v u="$delta" 'BEGIN { print int((n + u - 1) / u) * u }')     
-
-          #case ${{ inputs.version }} in
-          #  minor)
-          #    next_version=$((moodle_version + 1))
-          #    ;;
-          #  major)
-          #    next_version=500
-          #    ;;
-          #  *)
-          #    exit 2
-          #    ;;
-          #esac
-          
           TARGET_BRANCH=$(echo $CURRENT_BRANCH | sed "s/$moodle_version/$next_version/"
           echo "Next Branch: $TARGET_BRANCH"
           
@@ -114,11 +99,7 @@ jobs:
             echo "$TARGET_BRANCH does not exist, no newer Moodle major/minor version yet"
             echo "ready=false" >> $GITHUB_OUTPUT
           fi
-
-          # Suspend PR creation when dry run
-          #if [ ${{ inputs.dryrun }} ]; then
-            echo "ready=false" >> $GITHUB_OUTPUT
-          #fi
+          exit 30
 
       - name: Branch old version
         if: steps.next_moodle.outputs.ready == 'true'
