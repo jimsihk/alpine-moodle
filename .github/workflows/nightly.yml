@@ -3,8 +3,9 @@ name: Nightly Build
 on:
   schedule:
     - cron: '00 21 * * *' #UTC
-  push:
-    branches: ["feature/check-moodle-major-version"]
+  workflow_dispatch:
+  #push:
+  #  branches: ["feature/check-moodle-major-version"]
 
 permissions:
   contents: read
@@ -88,7 +89,7 @@ jobs:
           delete-only-untagged-versions: 'true'
           min-versions-to-keep: 0
 
-  detect-moodle-release:
+  check-new-moodle:
     permissions:
       contents: write
       pull-requests: write
