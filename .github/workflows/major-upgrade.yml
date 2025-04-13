@@ -76,7 +76,7 @@ jobs:
           # Compile next branch name
           moodle_version=$(echo $CURRENT_BRANCH | grep -oE '[0-9]+')
           next_version=$((moodle_version + 1))
-          TARGET_BRANCH=$(echo $CURRENT_BRANCH | sed "s/$moodle_version/$next_version/"
+          TARGET_BRANCH=$(echo $CURRENT_BRANCH | sed "s/$moodle_version/$next_version/")
           echo "Next Branch: $TARGET_BRANCH"
           
           RESPONSE=$(git ls-remote --exit-code --heads ${{ steps.current_moodle.outputs.url }} refs/heads/$TARGET_BRANCH)
