@@ -45,7 +45,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ ! ( vars.DRYRUN == true ) }}
+          push: ${{ vars.DRYRUN == false }}
           tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
   scan-nightly-build:

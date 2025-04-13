@@ -2,15 +2,6 @@
 name: Major Release Checker
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        type: string
-        description: 'Increment on Moodle version to be checked, available: major, minor'
-        default: minor
-      dryrun:
-        type: boolean
-        default: false
   workflow_call:
     inputs:
       version:
@@ -92,8 +83,8 @@ jobs:
               delta=999
               ;;
           esac
-          echo "delta=$DELTA" >> $GITHUB_OUTPUT
-          echo "delta=$DELTA"
+          echo "delta=$delta" >> $GITHUB_OUTPUT
+          echo "delta=$delta"
 
       - name: Check if newer Moodle version
         id: next_moodle
