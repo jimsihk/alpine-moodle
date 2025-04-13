@@ -84,7 +84,7 @@ jobs:
               next_version=$((moodle_version + 1))
               ;;
             major)
-              next_version=$((((moodle_version + 100) / 100) * 100))
+              next_version=$(awk -v n="$moodle_version" 'BEGIN { print int((n + 99) / 100) * 100 }')
               ;;
             *)
               exit 2
