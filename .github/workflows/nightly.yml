@@ -52,7 +52,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ (env.dryrun || github.event.inputs.dryrun) }}
+          push: ${{ env.dryrun || github.event.inputs.dryrun }}
           tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
   scan-nightly-build:
@@ -71,6 +71,7 @@ jobs:
     needs: [build-container]
     with:
       image: ${{ vars.REGISTRY_NIGHTLY }}/${{ github.repository }}:nightly
+      dryrun: ${{ env.dryrun || github.event.inputs.dryrun }}
     secrets:
       RELEASE_BOT_APP_ID: ${{ secrets.RELEASE_BOT_APP_ID }}
       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
@@ -108,4 +109,4 @@ jobs:
       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
     with:
       version: ${{ matrix.trial }}
-      dryrun: ${{ (env.dryrun || github.event.inputs.dryrun) }}
+      dryrun: ${{ env.dryrun || github.event.inputs.dryrun }}
