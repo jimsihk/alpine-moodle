@@ -3,6 +3,14 @@ name: Major Release Checker
 
 on:
   workflow_call:
+    inputs:
+      version:
+        type: string
+        description: 'Increment on Moodle version to be checked, available: major, minor'
+        default: minor
+      dryrun:
+        type: boolean
+        default: false
     secrets:
       RELEASE_BOT_APP_ID:
         required: true
@@ -17,7 +25,7 @@ env:
   BRANCH_NAME_PREFIX: feature
 
 jobs:
-  pr-for-next-major-release:
+  create-pr:
     runs-on: ubuntu-latest
     continue-on-error: true #ignore git error
     steps:
@@ -67,7 +75,18 @@ jobs:
           CURRENT_BRANCH=${{ steps.current_moodle.outputs.branch }}
           # Compile next branch name
           moodle_version=$(echo $CURRENT_BRANCH | grep -oE '[0-9]+')
-          next_version=$((moodle_version + 1))
+          case ${{ inputs.version }} in
+            major)
+              next_version=$(awk -v n=$moodle_version 'BEGIN { print int((n + 99) / 100) * 100 }')
+              ;;
+            minor)
+              next_version=$((moodle_version + 1))
+              ;;
+            *)
+              echo "Invalid version: ${{ inputs.version }}!"
+              exit 20
+              ;;
+          esac
           TARGET_BRANCH=$(echo $CURRENT_BRANCH | sed "s/$moodle_version/$next_version/")
           echo "Next Branch: $TARGET_BRANCH"
           
@@ -90,6 +109,11 @@ jobs:
           else
             echo "$TARGET_BRANCH does not exist, no newer Moodle major/minor version yet"
             echo "ready=false" >> $GITHUB_OUTPUT
+          fi
+
+          if [ ${{ inputs.dryrun }} ]
+          then
+            exit 30
           fi
 
       - name: Branch old version

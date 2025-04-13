@@ -3,6 +3,9 @@ name: Nightly Build
 on:
   schedule:
     - cron: '00 21 * * *' #UTC
+  workflow_dispatch:
+  #push:
+  #  branches: ["feature/check-moodle-major-version"]
 
 permissions:
   contents: read
@@ -43,7 +46,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: ${{ vars.DRYRUN == false }}
           tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
   scan-nightly-build:
@@ -62,6 +65,7 @@ jobs:
     needs: [build-container]
     with:
       image: ${{ vars.REGISTRY_NIGHTLY }}/${{ github.repository }}:nightly
+      dryrun: ${{ vars.DRYRUN == true }}
     secrets:
       RELEASE_BOT_APP_ID: ${{ secrets.RELEASE_BOT_APP_ID }}
       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
@@ -85,11 +89,18 @@ jobs:
           delete-only-untagged-versions: 'true'
           min-versions-to-keep: 0
 
-  detect-major-release:
+  check-new-moodle:
     permissions:
       contents: write
       pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        trial: [major, minor]
     uses: ./.github/workflows/major-upgrade.yml
     secrets:
       RELEASE_BOT_APP_ID: ${{ secrets.RELEASE_BOT_APP_ID }}
       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+    with:
+      version: ${{ matrix.trial }}
+      dryrun: ${{ vars.DRYRUN == true }}
