@@ -3,11 +3,6 @@ name: Nightly Build
 on:
   schedule:
     - cron: '00 21 * * *' #UTC
-  workflow_dispatch:
-    inputs:
-      dryrun:
-        type: boolean
-        default: true
   push:
     branches: ["feature/check-moodle-major-version"]
 
@@ -50,7 +45,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.event.inputs.dryrun == false }}
+          push: ${{ !vars.DRYRUN }}
           tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
   scan-nightly-build:
@@ -69,7 +64,7 @@ jobs:
     needs: [build-container]
     with:
       image: ${{ vars.REGISTRY_NIGHTLY }}/${{ github.repository }}:nightly
-      dryrun: ${{ github.event.inputs.dryrun }}
+      dryrun: ${{ vars.DRYRUN }}
     secrets:
       RELEASE_BOT_APP_ID: ${{ secrets.RELEASE_BOT_APP_ID }}
       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
@@ -107,4 +102,4 @@ jobs:
       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
     with:
       version: ${{ matrix.trial }}
-      dryrun: ${{ github.event.inputs.dryrun }}
+      dryrun: ${{ vars.DRYRUN }}
