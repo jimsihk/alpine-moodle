@@ -75,7 +75,18 @@ jobs:
           CURRENT_BRANCH=${{ steps.current_moodle.outputs.branch }}
           # Compile next branch name
           moodle_version=$(echo $CURRENT_BRANCH | grep -oE '[0-9]+')
-          next_version=$((moodle_version + 1))
+          case ${{ inputs.version }} in
+            major)
+              next_version=$(awk -v n=$moodle_version 'BEGIN { print int((n + 99) / 100) * 100 }')
+              ;;
+            minor)
+              next_version=$((moodle_version + 1))
+              ;;
+            *)
+              echo "Invalid version: ${{ inputs.version }}!"
+              exit 20
+              ;;
+          esac
           TARGET_BRANCH=$(echo $CURRENT_BRANCH | sed "s/$moodle_version/$next_version/")
           echo "Next Branch: $TARGET_BRANCH"
           
@@ -99,7 +110,11 @@ jobs:
             echo "$TARGET_BRANCH does not exist, no newer Moodle major/minor version yet"
             echo "ready=false" >> $GITHUB_OUTPUT
           fi
-          exit 30
+
+          if [ ${{ inputs.dryrun }} ]
+          then
+            exit 30
+          fi
 
       - name: Branch old version
         if: steps.next_moodle.outputs.ready == 'true'
