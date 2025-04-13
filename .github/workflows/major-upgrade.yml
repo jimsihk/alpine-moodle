@@ -116,9 +116,9 @@ jobs:
           fi
 
           # Suspend PR creation when dry run
-          if [ ${{ inputs.dryrun }} ]; then
+          #if [ ${{ inputs.dryrun }} ]; then
             echo "ready=false" >> $GITHUB_OUTPUT
-          fi
+          #fi
 
       - name: Branch old version
         if: steps.next_moodle.outputs.ready == 'true'
