@@ -93,7 +93,8 @@ jobs:
           # Compile next branch name
           moodle_version=$(echo $CURRENT_BRANCH | grep -oE '[0-9]+')
           delta=${{ steps.bump.outputs.delta }}
-          next_version=$((moodle_version + delta))
+          #next_version=$((moodle_version + delta))
+          next_version=$(awk -v n="$moodle_version" -v u="$delta" 'BEGIN { print int((n + u - 1) / u) * u }')     
           TARGET_BRANCH=$(echo $CURRENT_BRANCH | sed "s/$moodle_version/$next_version/")
           echo "Next Branch: $TARGET_BRANCH"
           
