@@ -2,7 +2,21 @@
 name: Major Release Checker
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        description: 'Increment on Moodle version to be checked, available: major, minor'
+        default: minor
+      dryrun:
+        type: boolean
+        default: false
   workflow_call:
+    inputs:
+      version:
+        type: string
+        description: 'Increment on Moodle version to be checked, available: major, minor'
+        default: minor
     secrets:
       RELEASE_BOT_APP_ID:
         required: true
@@ -61,13 +75,31 @@ jobs:
           echo "commit=$moodle_git_commit" >> $GITHUB_OUTPUT
           echo "version=$TMP_VERSION" >> $GITHUB_OUTPUT
 
+      - name: Parse input
+        id: bump
+        run: |
+          case ${{ inputs.version }} in
+            minor)
+              delta=1
+              ;;
+            major)
+              delta=100
+              ;;
+            *)
+              delta=999
+              ;;
+          esac
+          echo "delta=$DELTA" >> $GITHUB_OUTPUT
+          echo "delta=$DELTA"
+
       - name: Check if newer Moodle version
         id: next_moodle
         run: |
           CURRENT_BRANCH=${{ steps.current_moodle.outputs.branch }}
           # Compile next branch name
           moodle_version=$(echo $CURRENT_BRANCH | grep -oE '[0-9]+')
-          next_version=$((moodle_version + 1))
+          delta=${{ steps.bump.outputs.delta }}
+          next_version=$((moodle_version + delta))
           TARGET_BRANCH=$(echo $CURRENT_BRANCH | sed "s/$moodle_version/$next_version/")
           echo "Next Branch: $TARGET_BRANCH"
           
@@ -89,6 +121,11 @@ jobs:
             echo "version=$TMP_VERSION" >> $GITHUB_OUTPUT
           else
             echo "$TARGET_BRANCH does not exist, no newer Moodle major/minor version yet"
+            echo "ready=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Suspend PR creation when dry run
+          if [ ${{ inputs.dryrun }} ]; then
             echo "ready=false" >> $GITHUB_OUTPUT
           fi
 
