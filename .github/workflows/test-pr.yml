@@ -42,7 +42,7 @@ jobs:
           
           echo "After:"
           docker image ls -a
-          docker image history "${{ env.IMAGE_NAME }}:${{ github.sha }}.slim:latest"
+          docker image history "${{ env.IMAGE_NAME }}.slim:latest"
 
           echo "Test slim version..."
           export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}.slim:latest
