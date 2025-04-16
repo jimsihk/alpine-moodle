@@ -26,6 +26,25 @@ jobs:
           export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
 
+      - name: Slim image
+        run: |
+          echo "Install Slim..."
+          curl -sL https://raw.githubusercontent.com/slimtoolkit/slim/master/scripts/install-slim.sh | sudo -E bash -
+          echo "Before:"
+          docker image ls -a
+          docker image history "${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
+          echo "Trying to slim..."
+          slim build --target ${{ env.IMAGE_NAME }}:${{ github.sha }} --http-probe=false
+          
+          echo "After:"
+          docker image ls -a
+          docker image history "${{ env.IMAGE_NAME }}:${{ github.sha }}.slim:latest"
+
+          echo "Test slim version..."
+          export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ github.sha }}.slim:latest
+          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
+
       - name: Set up QEMU
         id: qemu
         uses: docker/setup-qemu-action@v3
