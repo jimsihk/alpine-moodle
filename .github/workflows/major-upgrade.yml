@@ -128,10 +128,7 @@ jobs:
           NEW_BRANCH=${{ steps.next_moodle.outputs.branch }}
           NEW_COMMIT=${{ steps.next_moodle.outputs.commit }}
           NEW_VERSION=${{ steps.next_moodle.outputs.version }}
-          
-          sed -i "s/$OLD_BRANCH/$NEW_BRANCH/g" Dockerfile
-          sed -i "s/$OLD_COMMIT/$NEW_COMMIT/g" Dockerfile
-          sed -i "s/moodle-$OLD_VERSION/moodle-$NEW_VERSION/g" README.md
+          ./upgrade.sh
 
       - name: Create PR
         if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
