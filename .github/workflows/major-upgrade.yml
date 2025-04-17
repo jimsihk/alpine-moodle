@@ -111,13 +111,8 @@ jobs:
             echo "ready=false" >> $GITHUB_OUTPUT
           fi
 
-          if [ ${{ inputs.dryrun }} ]
-          then
-            exit 30
-          fi
-
       - name: Branch old version
-        if: steps.next_moodle.outputs.ready == 'true'
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
         uses: peterjgrainger/action-create-branch@v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -125,7 +120,7 @@ jobs:
           branch: ${{ steps.current_moodle.outputs.version }}
 
       - name: Update source codes
-        if: steps.next_moodle.outputs.ready == 'true'
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
         run: |
           OLD_BRANCH=${{ steps.current_moodle.outputs.branch }}
           OLD_COMMIT=${{ steps.current_moodle.outputs.commit }}
@@ -139,7 +134,7 @@ jobs:
           sed -i "s/moodle-$OLD_VERSION/moodle-$NEW_VERSION/g" README.md
 
       - name: Create PR
-        if: steps.next_moodle.outputs.ready == 'true'
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ steps.generate_release_token.outputs.token }}
