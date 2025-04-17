@@ -122,12 +122,12 @@ jobs:
       - name: Update source codes
         if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
         run: |
-          OLD_BRANCH=${{ steps.current_moodle.outputs.branch }}
-          OLD_COMMIT=${{ steps.current_moodle.outputs.commit }}
-          OLD_VERSION=${{ steps.current_moodle.outputs.version }}
-          NEW_BRANCH=${{ steps.next_moodle.outputs.branch }}
-          NEW_COMMIT=${{ steps.next_moodle.outputs.commit }}
-          NEW_VERSION=${{ steps.next_moodle.outputs.version }}
+          export OLD_BRANCH=${{ steps.current_moodle.outputs.branch }}
+          export OLD_COMMIT=${{ steps.current_moodle.outputs.commit }}
+          export OLD_VERSION=${{ steps.current_moodle.outputs.version }}
+          export NEW_BRANCH=${{ steps.next_moodle.outputs.branch }}
+          export NEW_COMMIT=${{ steps.next_moodle.outputs.commit }}
+          export NEW_VERSION=${{ steps.next_moodle.outputs.version }}
           ./upgrade.sh
 
       - name: Create PR
