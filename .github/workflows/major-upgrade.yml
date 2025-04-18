@@ -109,7 +109,7 @@ jobs:
           fi
 
       - name: Branch old version
-        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
         uses: peterjgrainger/action-create-branch@v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
