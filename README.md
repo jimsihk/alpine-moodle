@@ -4,7 +4,7 @@
 ![Docker Image Size](https://img.shields.io/docker/image-size/jimsihk/alpine-moodle)
 ![nginx 1.26](https://img.shields.io/badge/nginx-1.26-brightgreen.svg)
 ![php 8.3](https://img.shields.io/badge/php-8.3-brightgreen.svg)
-![moodle-4.5](https://img.shields.io/badge/moodle-4.5-yellow)
+![moodle-5.](https://img.shields.io/badge/moodle-5.-yellow)
 ![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 
 Moodle setup with high availability (HA) capabilities for Docker, build on [Alpine Linux](http://www.alpinelinux.org/).
