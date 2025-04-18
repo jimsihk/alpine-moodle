@@ -103,4 +103,4 @@ jobs:
       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
     with:
       version: ${{ matrix.trial }}
-      dryrun: ${{ vars.DRYRUN == true }}
+      dryrun: ${{ vars.DRYRUN }}
