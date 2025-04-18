@@ -9,7 +9,7 @@ on:
         description: 'Increment on Moodle version to be checked, available: major, minor'
         default: minor
       dryrun:
-        type: boolean
+        type: string
         default: false
     secrets:
       RELEASE_BOT_APP_ID:
@@ -33,13 +33,10 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Generate release token
-        id: generate_release_token
-        uses: tibdex/github-app-token@v2
-        with:
-          app_id: ${{ secrets.RELEASE_BOT_APP_ID }}
-          private_key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
-    
+      - name: Debug
+        run: |
+          echo "dryrun: ${{ inputs.dryrun }}"
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -98,8 +95,9 @@ jobs:
             # Format Moodle version number
             TMP_REV=$(echo $next_version | rev)
             TMP_MINOR=$(echo $TMP_REV | cut -c -2 | rev | sed 's/^0*//')
+            TMP_MINOR2=${TMP_MINOR:-0}
             TMP_MAJOR=$(echo $TMP_REV | cut -c 3- | rev)
-            TMP_VERSION="$TMP_MAJOR.$TMP_MINOR"
+            TMP_VERSION="$TMP_MAJOR.$TMP_MINOR2"
             
             echo "$TARGET_BRANCH ($NEXT_COMMIT) exist, newer Moodle major/minor version is available"
             echo "ready=true" >> $GITHUB_OUTPUT
@@ -112,7 +110,7 @@ jobs:
           fi
 
       - name: Branch old version
-        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
         uses: peterjgrainger/action-create-branch@v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -120,7 +118,7 @@ jobs:
           branch: ${{ steps.current_moodle.outputs.version }}
 
       - name: Update source codes
-        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
         run: |
           export OLD_BRANCH=${{ steps.current_moodle.outputs.branch }}
           export OLD_COMMIT=${{ steps.current_moodle.outputs.commit }}
@@ -130,8 +128,16 @@ jobs:
           export NEW_VERSION=${{ steps.next_moodle.outputs.version }}
           ./upgrade.sh
 
+      - name: Generate release token
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
+        id: generate_release_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private_key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+
       - name: Create PR
-        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ steps.generate_release_token.outputs.token }}
