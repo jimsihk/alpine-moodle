@@ -95,8 +95,9 @@ jobs:
             # Format Moodle version number
             TMP_REV=$(echo $next_version | rev)
             TMP_MINOR=$(echo $TMP_REV | cut -c -2 | rev | sed 's/^0*//')
+            TMP_MINOR2=$(TMP_MINOR:-0)
             TMP_MAJOR=$(echo $TMP_REV | cut -c 3- | rev)
-            TMP_VERSION="$TMP_MAJOR.$TMP_MINOR"
+            TMP_VERSION="$TMP_MAJOR.$TMP_MINOR2"
             
             echo "$TARGET_BRANCH ($NEXT_COMMIT) exist, newer Moodle major/minor version is available"
             echo "ready=true" >> $GITHUB_OUTPUT
