@@ -117,7 +117,7 @@ jobs:
           branch: ${{ steps.current_moodle.outputs.version }}
 
       - name: Update source codes
-        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
         run: |
           export OLD_BRANCH=${{ steps.current_moodle.outputs.branch }}
           export OLD_COMMIT=${{ steps.current_moodle.outputs.commit }}
@@ -128,7 +128,7 @@ jobs:
           ./upgrade.sh
 
       - name: Generate release token
-        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
         id: generate_release_token
         uses: tibdex/github-app-token@v2
         with:
@@ -136,7 +136,7 @@ jobs:
           private_key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
 
       - name: Create PR
-        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ steps.generate_release_token.outputs.token }}
