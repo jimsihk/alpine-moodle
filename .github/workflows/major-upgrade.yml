@@ -33,13 +33,10 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Generate release token
-        id: generate_release_token
-        uses: tibdex/github-app-token@v2
-        with:
-          app_id: ${{ secrets.RELEASE_BOT_APP_ID }}
-          private_key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
-    
+      - name: Debug
+        run: |
+          echo "dryrun: ${{ inputs.dryrun }}
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -129,6 +126,14 @@ jobs:
           export NEW_COMMIT=${{ steps.next_moodle.outputs.commit }}
           export NEW_VERSION=${{ steps.next_moodle.outputs.version }}
           ./upgrade.sh
+
+      - name: Generate release token
+        if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
+        id: generate_release_token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          private_key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
 
       - name: Create PR
         if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun == 'false'
