@@ -35,7 +35,7 @@ jobs:
 
       - name: Debug
         run: |
-          echo "dryrun: ${{ inputs.dryrun }}
+          echo "dryrun: ${{ inputs.dryrun }}"
 
       - name: Checkout code
         uses: actions/checkout@v4
