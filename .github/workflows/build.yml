@@ -39,7 +39,7 @@ jobs:
           tags: |
             type=ref,event=tag
             type=ref,event=branch
-            type=sha
+            type=ref,event=pr
 
       - name: Prepare Meta Data (Slim)
         id: meta-slim
@@ -53,7 +53,7 @@ jobs:
           tags: |
             type=ref,event=tag
             type=ref,event=branch
-            type=sha
+            type=ref,event=pr
 
       - name: Prepare
         id: prepare
@@ -166,8 +166,11 @@ jobs:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           # tags: ${{ steps.prepare.outputs.tags }}
-          tags: ${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}
-          platforms: ${{ steps.prepare.outputs.platforms }}
+          #platforms: ${{ steps.prepare.outputs.platforms }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          platforms: ${{ vars.CONTAINER_ARCH }}
           provenance: false
 
       - name: Build and push (slim version)
@@ -177,8 +180,11 @@ jobs:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
           # tags: ${{ steps.prepare.outputs.tags_slim }}
-          tags: ${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}-slim
-          platforms: ${{ steps.prepare.outputs.platforms }}
+          #platforms: ${{ steps.prepare.outputs.platforms }}
+          tags: ${{ steps.meta-slim.outputs.tags }}
+          labels: ${{ steps.meta-slim.outputs.labels }}
+          annotations: ${{ steps.meta-slim.outputs.annotations }}
+          platforms: ${{ vars.CONTAINER_ARCH }}
           provenance: false
           build-args: |
             ARG_ENABLE_GIT_CLONE='false'
