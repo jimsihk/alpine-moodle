@@ -20,11 +20,11 @@ TEMP_MOODLE_PATH='/tmp/moodle'
 #   the functionality of git pull from source
 echo "Downloading Moodle..."
 # As docker cache mount is used, only perform dowload when cache directory is empty
-if [ ! -f "${TEMP_MOODLE_PATH}/version.php" ]; then
+#if [ ! -f "${TEMP_MOODLE_PATH}/version.php" ]; then
   "$UTL_PATH"/clone-from-git "${MOODLE_GIT_URL}" "${MODOLE_GIT_BRANCH}" "${MOODLE_GIT_COMMIT}" "${TEMP_MOODLE_PATH}"
-else
-  echo "Skipped download as cache exist"
-fi
+#else
+#  echo "Skipped download as cache exist"
+#fi
 # Remove unused files which are difficult to hide by Nginx config
 "$MOODLE_UTL_PATH"/clean-moodle-code "${TEMP_MOODLE_PATH}"
 
@@ -36,27 +36,27 @@ echo "Downloading Moodle system plugins..."
 # Install plugin for Redis Sentinel cache store
 # Reference: https://github.com/catalyst/moodle-cachestore_redissentinel
 echo "Downloading redissentinel..."
-if [ ! -f "${TEMP_MOODLE_PATH}/cache/stores/redissentinel/version.php" ]; then
+#if [ ! -f "${TEMP_MOODLE_PATH}/cache/stores/redissentinel/version.php" ]; then
   "$MOODLE_UTL_PATH"/install-git-plugin \
     "${REDISSENTINEL_PLUGIN_GIT_URL}"  \
     "${REDISSENTINEL_PLUGIN_GIT_BRANCH}" \
     "${REDISSENTINEL_PLUGIN_GIT_COMMIT}" \
     "${TEMP_MOODLE_PATH}/cache/stores/redissentinel/"
-else
-  echo "Skipped download as cache exist"
-fi
+#else
+#  echo "Skipped download as cache exist"
+#fi
 # Install plugin for memcached cache store which was removed from Moodle core since 4.2
 # Reference: https://tracker.moodle.org/browse/MDL-77161
 echo "Downloading memcached..."
-if [ ! -f "${TEMP_MOODLE_PATH}/cache/stores/memcached/version.php" ]; then
+#if [ ! -f "${TEMP_MOODLE_PATH}/cache/stores/memcached/version.php" ]; then
   "$MOODLE_UTL_PATH"/install-git-plugin \
     "${MEMCACHED_PLUGIN_GIT_URL}" \
     "${MEMCACHED_PLUGIN_GIT_BRANCH}" \
     "${MEMCACHED_PLUGIN_GIT_COMMIT}" \
     "${TEMP_MOODLE_PATH}/cache/stores/memcached/"
-else
-  echo "Skipped download as cache exist"
-fi
+#else
+#  echo "Skipped download as cache exist"
+#fi
 
 # 3. Copy entire Moodle code folder at once
 echo "Copying from ${TEMP_MOODLE_PATH} to ${WEB_PATH}..."
