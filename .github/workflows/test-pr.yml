@@ -32,7 +32,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Try build
-        if: matrix.image == 'normal'
+        #if: matrix.image == 'normal'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -43,20 +43,21 @@ jobs:
           build-args: |
             ARG_MOODLE_PLUGIN_LIST=report_benchmark
             ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+            ARG_ENABLE_GIT_CLONE=${{ matrix.image == "slim" }}
 
-      - name: Try build
-        if: matrix.image == 'slim'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          provenance: false
-          load: true
-          build-args: |
-            ARG_MOODLE_PLUGIN_LIST=report_benchmark
-            ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
-            ARG_ENABLE_GIT_CLONE='false'
+      #- name: Try build
+      #  if: matrix.image == 'slim'
+      #  uses: docker/build-push-action@v6
+      #  with:
+      #    context: .
+      #    push: false
+      #    tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+      #    provenance: false
+      #    load: true
+      #    build-args: |
+      #      ARG_MOODLE_PLUGIN_LIST=report_benchmark
+      #      ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+      #      ARG_ENABLE_GIT_CLONE='false'
 
       - name: Test
         run: |
