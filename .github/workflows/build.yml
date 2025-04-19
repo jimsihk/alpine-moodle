@@ -39,6 +39,7 @@ jobs:
           tags: |
             type=ref,event=tag
             type=ref,event=branch
+            type=sha
 
       - name: Prepare Meta Data (Slim)
         id: meta-slim
@@ -47,15 +48,12 @@ jobs:
           images: |
             ${{ github.repository }}
             quay.io/${{ github.repository }}
+          flavor: |
+            suffix=-slim,onLatest=true
           tags: |
-            type=ref,event=tag,suffix=-slim
-            type=ref,event=branch,suffix=-slim
-
-      - name: Debug Meta Data
-        run: |
-          echo ${{ steps.meta.outputs.tags }}
-          echo ${{ steps.meta.outputs.labels }}
-          echo ${{ steps.meta-slim.outputs.tags }}
+            type=ref,event=tag
+            type=ref,event=branch
+            type=sha
 
       - name: Prepare
         id: prepare
