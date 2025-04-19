@@ -6,6 +6,7 @@
 #             $2: Git branch, e.g. master
 #             $3: Git commit hash, e.g. b495e8f36a81fd1a2a414e34a978da879c473f31
 #             $4: Moodle plugin absolute path, e.g. /var/www/html/cache/stores/redissentinel/
+#             $5: Optional cache directory, e.g. /path/to/cache
 #
 
 if [ -n "$1" ] && [ -n "$2" ] && [ -n "$3" ] && [ -n "$4" ]
@@ -14,36 +15,60 @@ then
   INPUT_GIT_BRANCH="$2"
   INPUT_GIT_COMMIT="$3"
   DOWNLOAD_PATH="$4"
-  
+
+  # Supports docker cache
+  CACHE_DIR="${5:-/tmp/build_cache}"
+  GIT_CACHE="${CACHE_DIR}/git_cache"
+  DOWNLOAD_CACHE="${CACHE_DIR}/download_cache"
+
+  CACHE_KEY=$(echo "${INPUT_GIT_URL}_${INPUT_GIT_COMMIT}" | md5sum | cut -d ' ' -f 1)
+  GIT_CACHE_PATH="${GIT_CACHE}/${CACHE_KEY}"
+  DOWNLOAD_CACHE_PATH="${DOWNLOAD_CACHE}/${CACHE_KEY}"
+
   if [ "${ENABLE_GIT_CLONE}" = 'true' ]
   then
-    echo "Clone from git repo: ${INPUT_GIT_URL} to ${DOWNLOAD_PATH}..."
-    git clone "${INPUT_GIT_URL}" --branch "${INPUT_GIT_BRANCH}" --single-branch --depth 1 "${DOWNLOAD_PATH}"/
-    # Make sure the current HEAD is the defined commit
-    for FETCH_DEPTH in 1 5 10 30 50 100 200
-    do
-      if [ $FETCH_DEPTH -gt 1 ]
-      then
-        echo "Attempting to fetch last $FETCH_DEPTH commits..."
-        git -C "${DOWNLOAD_PATH}" fetch origin "${INPUT_GIT_BRANCH}" --depth "${FETCH_DEPTH}"
-      fi
-      git -C "${DOWNLOAD_PATH}" reset --hard "${INPUT_GIT_COMMIT}"
-      RESULT=$?
-      if [ $RESULT -eq 0 ]
-      then
-        break;
-      fi
-    done
-    git -C "${DOWNLOAD_PATH}" clean -dfx
+    if [ -d "${GIT_CACHE_PATH}" ]
+    then
+      echo "Using cached git clone repository at ${GIT_CACHE_PATH}..."
+      cp -a "${GIT_CACHE_PATH}/." "${DOWNLOAD_PATH}"
+    else
+      echo "Clone from git repo: ${INPUT_GIT_URL} to ${DOWNLOAD_PATH}..."
+      git clone "${INPUT_GIT_URL}" --branch "${INPUT_GIT_BRANCH}" --single-branch --depth 1 "${DOWNLOAD_PATH}"/
+      # Make sure the current HEAD is the defined commit
+      for FETCH_DEPTH in 1 5 10 30 50 100 200
+      do
+        if [ $FETCH_DEPTH -gt 1 ]
+        then
+          echo "Attempting to fetch last $FETCH_DEPTH commits..."
+          git -C "${DOWNLOAD_PATH}" fetch origin "${INPUT_GIT_BRANCH}" --depth "${FETCH_DEPTH}"
+        fi
+        git -C "${DOWNLOAD_PATH}" reset --hard "${INPUT_GIT_COMMIT}"
+        RESULT=$?
+        if [ $RESULT -eq 0 ]
+        then
+          break;
+        fi
+      done
+      git -C "${DOWNLOAD_PATH}" clean -dfx
+      mkdir -p "${GIT_CACHE}"
+      cp -a "${DOWNLOAD_PATH}/." "${GIT_CACHE_PATH}"
+    fi
   else
     if [ ! -d "${DOWNLOAD_PATH}" ]
     then
       mkdir -p "${DOWNLOAD_PATH}"
     fi
-    # e.g. https://github.com/catalyst/moodle-cachestore_redissentinel/archive/b495e8f36a81fd1a2a414e34a978da879c473f31.tar.gz
     DOWNLOAD_URL=$(echo "${INPUT_GIT_URL}" | sed 's/\.git$//')'/archive/'"${INPUT_GIT_COMMIT}"'.tar.gz'
-    echo "Download from git repo: ${DOWNLOAD_URL} to ${DOWNLOAD_PATH}..."
-    curl --location "${DOWNLOAD_URL}" | tar xz --strip-components=1 -C "${DOWNLOAD_PATH}"/
+    if [ -d "${DOWNLOAD_CACHE_PATH}" ]
+    then
+      echo "Using cached download directory at ${DOWNLOAD_CACHE_PATH}..."
+      cp -a "${DOWNLOAD_CACHE_PATH}/." "${DOWNLOAD_PATH}"
+    else
+      echo "Download from git repo: ${DOWNLOAD_URL} to ${DOWNLOAD_PATH}..."
+      curl --location "${DOWNLOAD_URL}" | tar xz --strip-components=1 -C "${DOWNLOAD_PATH}"/
+      mkdir -p "${DOWNLOAD_CACHE}"
+      cp -a "${DOWNLOAD_PATH}/." "${DOWNLOAD_CACHE_PATH}"
+    fi
   fi
 else
   echo "Missing argument: <repo> <branch> <commit_hash> <local_path>"
