@@ -50,7 +50,7 @@ services:
       - postgres
 
   redis:
-    image: redis/redis:latest
+    image: redis/redis-stack-server:latest
 
   sut:
     image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
