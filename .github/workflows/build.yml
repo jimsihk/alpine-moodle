@@ -110,6 +110,19 @@ jobs:
             ARG_MOODLE_PLUGIN_LIST=report_benchmark
             ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
 
+      - name: Try build (Slim)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}
+          provenance: false
+          load: true
+          build-args: |
+            ARG_MOODLE_PLUGIN_LIST=report_benchmark
+            ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+            ARG_ENABLE_GIT_CLONE='false'
+
       - name: Test
         run: |
           export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}
