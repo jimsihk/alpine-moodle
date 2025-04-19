@@ -51,7 +51,7 @@ jobs:
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
 
       - name: Try build multi-arch
-        if: !endsWith(matrix.os, 'arm')
+        if: endsWith(matrix.os, 'arm')
         uses: docker/build-push-action@v6
         with:
           context: .
