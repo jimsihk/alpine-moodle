@@ -53,7 +53,7 @@ services:
     image: redis/redis-stack-server:latest
 
   sut:
-    image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
+    image: quay.io/jimsihk/alpine-php-nginx:latest
     depends_on:
       - app
     environment:
