@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        slim: [false, true]
+        image: [normal, slim]
     runs-on: ubuntu-latest
     steps:
       - uses: step-security/harden-runner@v2
@@ -43,7 +43,7 @@ jobs:
           build-args: |
             ARG_MOODLE_PLUGIN_LIST=report_benchmark
             ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
-            ARG_ENABLE_GIT_CLONE=${{ matrix.slim }}
+            ARG_ENABLE_GIT_CLONE=${{ matrix.image = 'normal' }}
 
       #- name: Try build
       #  if: matrix.image == 'slim'
