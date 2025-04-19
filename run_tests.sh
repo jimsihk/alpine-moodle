@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-apk --no-cache add curl
 
 # Check that the database is available
 echo "Waiting for moodle to be ready"

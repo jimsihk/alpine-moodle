@@ -50,10 +50,10 @@ services:
       - postgres
 
   redis:
-    image: redis/redis-stack-server
+    image: redis/redis:latest
 
   sut:
-    image: alpine:latest
+    image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
     depends_on:
       - app
     environment:
