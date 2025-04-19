@@ -9,7 +9,8 @@
 
 UTL_PATH=/usr/libexec
 MOODLE_UTL_PATH=$UTL_PATH/moodle
-TEMP_MOODLE_PATH='/tmp/moodle'
+#TEMP_MOODLE_PATH='/tmp/moodle'
+TEMP_MOODLE_PATH="${WEB_PATH}"
 
 # 1. Download Moodle source
 #
@@ -59,7 +60,7 @@ echo "Downloading memcached..."
 #fi
 
 # 3. Copy entire Moodle code folder at once
-echo "Copying from ${TEMP_MOODLE_PATH} to ${WEB_PATH}..."
-cp -paR "${TEMP_MOODLE_PATH}"/. "$WEB_PATH"/
+#echo "Copying from ${TEMP_MOODLE_PATH} to ${WEB_PATH}..."
+#cp -paR "${TEMP_MOODLE_PATH}"/. "$WEB_PATH"/
 # Verify Moodle version if same as specified in DockerFile
 "$MOODLE_UTL_PATH"/check-moodle-version "${MOODLE_GIT_COMMIT}"
