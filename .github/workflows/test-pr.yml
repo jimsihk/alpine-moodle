@@ -97,6 +97,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    needs: [build-and-test-pr]
     steps:
       - run: |
           export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ github.sha }}
