@@ -53,6 +53,7 @@ jobs:
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           provenance: false
           load: true
+          cache-to: type=gha,mode=max
           build-args: |
             ARG_MOODLE_PLUGIN_LIST=report_benchmark
             ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
@@ -63,19 +64,19 @@ jobs:
           export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
 
-      - name: Try build multi-arch
-        if: steps.param.outputs.multi_arch == 'true'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: false
-          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          platforms: ${{ vars.CONTAINER_ARCH }}
-          provenance: false
-          build-args: |
-            ARG_MOODLE_PLUGIN_LIST=report_benchmark
-            ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
-            ARG_ENABLE_GIT_CLONE=${{ steps.param.outputs.git_clone }}
+      #- name: Try build multi-arch
+      #  if: steps.param.outputs.multi_arch == 'true'
+      #  uses: docker/build-push-action@v6
+      #  with:
+      #    context: .
+      #    push: false
+      #    tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+      #    platforms: ${{ vars.CONTAINER_ARCH }}
+      #    provenance: false
+      #    build-args: |
+      #      ARG_MOODLE_PLUGIN_LIST=report_benchmark
+      #      ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+      #      ARG_ENABLE_GIT_CLONE=${{ steps.param.outputs.git_clone }}
             
       - name: Run Trivy vulnerability scanner for PR
         uses: aquasecurity/trivy-action@master
@@ -100,9 +101,18 @@ jobs:
     needs: [build-and-test-pr]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@4
 
-      - name: Test
-        run: |
-          export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+      - name: Try build multi-arch
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          platforms: ${{ vars.CONTAINER_ARCH }}
+          provenance: false
+          cache-from: gha
+          build-args: |
+            ARG_MOODLE_PLUGIN_LIST=report_benchmark
+            ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+            
