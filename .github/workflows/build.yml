@@ -7,8 +7,8 @@ on:
     paths-ignore:
       - README.md
       - .github/workflows/update-dockerhub-desc.yml
-  pull_request:
-    branches: ["dev"]
+  #pull_request:
+  #  branches: ["dev"]
 
 env:
   IMAGE_REGISTRY: ${{ vars.REGISTRY_PUBLIC }}
