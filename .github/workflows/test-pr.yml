@@ -28,7 +28,7 @@ jobs:
           if [ "${{ matrix.image }}" == 'slim' ]; then
             echo "git_clone=false" >> $GITHUB_OUTPUT
           else
-            echo "git_clone=false" >> $GITHUB_OUTPUT
+            echo "git_clone=true" >> $GITHUB_OUTPUT
           fi
           if echo "${{ matrix.os }}" | grep -q "arm$"; then
             echo "multi_arch=false" >> $GITHUB_OUTPUT
@@ -94,3 +94,10 @@ jobs:
           image: '${{ env.IMAGE_NAME }}:${{ github.sha }}'
           output-format: table
           fail-build: false
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
