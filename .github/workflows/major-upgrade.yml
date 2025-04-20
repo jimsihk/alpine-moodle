@@ -145,4 +145,5 @@ jobs:
           commit-message: "Upgrade to Moodle ${{ steps.next_moodle.outputs.version }}"
           branch: "${{ env.BRANCH_NAME_PREFIX }}/${{ steps.next_moodle.outputs.branch }}"
           title: "Upgrade to Moodle ${{ steps.next_moodle.outputs.version }}"
+          sign-commits: true
           
