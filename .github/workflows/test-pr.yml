@@ -23,7 +23,8 @@ jobs:
         with:
           egress-policy: audit
 
-      - id: param
+      - name: Setup build parameters
+        id: param
         run: |
           if [ "${{ matrix.image }}" == 'slim' ]; then
             echo "git_clone=false" >> $GITHUB_OUTPUT
@@ -39,11 +40,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      #- name: Set up QEMU
+      #  uses: docker/setup-qemu-action@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      #- name: Set up Docker Buildx
+      #  uses: docker/setup-buildx-action@v3
 
       - name: Try build
         uses: docker/build-push-action@v6
@@ -101,7 +102,13 @@ jobs:
     needs: [build-and-test-pr]
     steps:
       - name: Checkout
-        uses: actions/checkout@4
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Try build multi-arch
         uses: docker/build-push-action@v6
