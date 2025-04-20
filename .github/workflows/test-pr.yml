@@ -99,6 +99,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-test-pr]
     steps:
-      - run: |
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test
+        run: |
           export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
