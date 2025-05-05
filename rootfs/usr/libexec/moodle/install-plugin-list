@@ -6,6 +6,8 @@
 # - Added plugin name when error in PHP function install_path
 # TODO: port to /bin/sh
 
+TMP_DOWNLOAD_PATH='/tmp/build_cache'
+
 usage() {
     cat 1>&2 <<EOF
 Script to install moodle plugin(s) by component name (ex. 'mod_jitsi').
@@ -40,7 +42,7 @@ install_plugin() {
     script_moodle_plugin_component_url="${script_moodle_plugin_component_url_md5_dest[0]:1:-1}"
     script_moodle_plugin_component_md5="${script_moodle_plugin_component_url_md5_dest[1]:1:-1}"
     script_moodle_plugin_component_dest="${script_moodle_plugin_component_url_md5_dest[2]:1:-1}"
-    script_moodle_plugin_component_tmp_parent_dest="/tmp/moodle-plugins/${script_moodle_plugin_component_md5}"
+    script_moodle_plugin_component_tmp_parent_dest="${TMP_DOWNLOAD_PATH}/${script_moodle_plugin_component_md5}"
     script_moodle_plugin_component_tmp_dest="${script_moodle_plugin_component_tmp_parent_dest}/$(basename ${script_moodle_plugin_component_dest})"
     script_moodle_plugin_component_bak_dest="${script_moodle_plugin_component_tmp_parent_dest}/backup"
     script_moodle_plugin_component_zip="${script_moodle_plugin_component_tmp_parent_dest}/${script_moodle_plugin_component_name}.zip"
@@ -68,11 +70,15 @@ install_plugin() {
         mv "${script_moodle_plugin_component_dest}" "${script_moodle_plugin_component_bak_dest}"
     fi
     # unzip plugin in destination directory
-    echo "Uncompressing to: ${script_moodle_plugin_component_tmp_dest}"
-    unzip -qo "${script_moodle_plugin_component_zip}" -d "${script_moodle_plugin_component_tmp_dest}"
+    if [ -z "$(find "$script_moodle_plugin_component_tmp_dest" -maxdepth 1 -not -name ".*" -not -path "$script_moodle_plugin_component_tmp_dest")" ]; then
+        echo "Uncompressing to: ${script_moodle_plugin_component_tmp_dest}"
+        unzip -qo "${script_moodle_plugin_component_zip}" -d "${script_moodle_plugin_component_tmp_dest}"
+    else
+        echo "Uncompressed plugin already exists: ${script_moodle_plugin_component_tmp_dest}"
+    fi
     plugin_base_dirname=$(basename "${script_moodle_plugin_component_tmp_dest}"/$(ls -d "${script_moodle_plugin_component_tmp_dest}"/* | head -n 1))
     echo "Installing to: ${script_moodle_plugin_component_dest}"
-    mv "${script_moodle_plugin_component_tmp_dest}/${plugin_base_dirname}/" "${script_moodle_plugin_component_dest}"
+    cp -pR "${script_moodle_plugin_component_tmp_dest}/${plugin_base_dirname}/" "${script_moodle_plugin_component_dest}"
 }
 
 get_plugin_url_md5_dest() {

@@ -1,11 +1,11 @@
 services:
   app:
     image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
-    build:
-      context: .
-      args:
-        - ARG_MOODLE_PLUGIN_LIST=report_benchmark
-        - ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+#    build:
+#      context: .
+#      args:
+#        - ARG_MOODLE_PLUGIN_LIST=report_benchmark
+#        - ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
     environment:
       - SITE_URL=http://app:8080
       - MOODLE_SITENAME=Dockerized_Moodle
@@ -51,10 +51,10 @@ services:
       - postgres
 
   redis:
-    image: redis/redis-stack-server
+    image: redis/redis-stack-server:latest
 
   sut:
-    image: alpine:latest
+    image: quay.io/jimsihk/alpine-php-nginx:latest
     depends_on:
       - app
     environment:
