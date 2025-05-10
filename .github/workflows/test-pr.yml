@@ -21,7 +21,7 @@ jobs:
           tags: |
             type=sha
     
-  build-and-test-pr:
+  test:
     strategy:
       fail-fast: false
       matrix:
