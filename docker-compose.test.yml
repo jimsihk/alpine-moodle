@@ -4,16 +4,17 @@ services:
     build:
       context: .
       args:
-        - ARG_MOODLE_PLUGIN_LIST=report_benchmark
+        - ARG_MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
         - ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+        - ARG_ENABLE_GIT_CLONE=${ARG_ENABLE_GIT_CLONE:-true}
     environment:
       - SITE_URL=http://app:8080
       - MOODLE_SITENAME=Dockerized_Moodle
       - SESSION_CACHE_TYPE=redis
       - SESSION_CACHE_HOST=redis
       - SESSION_CACHE_PORT=6379
-      - AUTO_UPDATE_MOODLE=false
-      - UPDATE_MOODLE_CODE=false
+      - AUTO_UPDATE_MOODLE=${AUTO_UPDATE_MOODLE:-false}
+      - UPDATE_MOODLE_CODE=${UPDATE_MOODLE_CODE:-false}
       - DB_TYPE=pgsql
       - DB_HOST=pgbouncer
       - DB_PORT=6432
