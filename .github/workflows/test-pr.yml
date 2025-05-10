@@ -26,6 +26,12 @@ jobs:
           tags: |
             type=sha
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and Test
         run: |
           echo '###############################'
@@ -65,13 +71,7 @@ jobs:
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
           unset ARG_ENABLE_GIT_CLONE
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Try build multi-arch
+      - name: Test build multi-arch
         uses: docker/build-push-action@v6
         with:
           context: .
