@@ -31,14 +31,15 @@ jobs:
           echo "Test build with plugin list and installing Moodle..."
           export TEST_IMAGE_NAME=${{ steps.meta.outputs.tags }}
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          docker compose down --remove-orphans
+          docker compose --file docker-compose.test.yml down --remove-orphans
 
+          echo '###############################'
           echo "Test Moodle update..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           export TEST_IMAGE_NAME=${{ steps.meta.outputs.tags }}
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          docker compose down --remove-orphans
+          docker compose --file docker-compose.test.yml down --remove-orphans
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
