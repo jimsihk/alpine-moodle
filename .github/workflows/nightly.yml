@@ -27,6 +27,10 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Debug
+        run: |
+          echo "dryrun: ${{ vars.DRYRUN }}"
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -46,7 +50,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ vars.DRYRUN == false }}
+          push: ${{ vars.DRYRUN != 'true' }}
           tags: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
   scan-nightly-build:
@@ -65,7 +69,7 @@ jobs:
     needs: [build-container]
     with:
       image: ${{ vars.REGISTRY_NIGHTLY }}/${{ github.repository }}:nightly
-      dryrun: ${{ vars.DRYRUN == true }}
+      dryrun: ${{ vars.DRYRUN == 'true' }}
     secrets:
       RELEASE_BOT_APP_ID: ${{ secrets.RELEASE_BOT_APP_ID }}
       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
