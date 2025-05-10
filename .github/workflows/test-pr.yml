@@ -8,6 +8,10 @@ on:
 
 jobs:
   build-and-test-pr:
+    strategy:
+      fail-fast: false
+      matrix:
+        test: [standard, slim, multi]
     runs-on: ubuntu-latest
     steps:
       - uses: step-security/harden-runner@v2
@@ -33,6 +37,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and Test
+        if: matrix.test == 'standard'
         run: |
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
@@ -52,15 +57,19 @@ jobs:
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
+      - name: Build and Test (Slim)
+        if: matrix.test == 'slim'
+        run: |
           echo '###############################'
-          echo "Test (slim) - build with plugin list and installing Moodle..."
+          echo "Test - build with plugin list and installing Moodle..."
           export TEST_IMAGE_NAME=${{ steps.meta.outputs.tags }}-slim
+          ARG_MOODLE_PLUGIN_LIST=report_benchmark
           export ARG_ENABLE_GIT_CLONE=false
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
 
           echo '###############################'
-          echo "Test (slim) - Moodle update and plugin installation..."
+          echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest-slim
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           export TEST_IMAGE_NAME=${{ steps.meta.outputs.tags }}-slim
@@ -72,6 +81,7 @@ jobs:
           unset ARG_ENABLE_GIT_CLONE
 
       - name: Test build multi-arch
+        if: matrix.test == 'multi'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -83,6 +93,7 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
 
       - name: Run Trivy vulnerability scanner for PR
+        if: matrix.test == 'standard'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.meta.outputs.tags }}
@@ -93,6 +104,7 @@ jobs:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
       - name: Run Anchore scan for PR
+        if: matrix.test == 'standard'
         uses: anchore/scan-action@v6
         id: anchore-scan-pr
         with:
