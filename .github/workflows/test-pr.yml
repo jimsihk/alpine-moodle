@@ -79,6 +79,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           platforms: ${{ vars.CONTAINER_ARCH }}
           provenance: false
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
 
       - name: Run Trivy vulnerability scanner for PR
         uses: aquasecurity/trivy-action@master
@@ -90,7 +92,7 @@ jobs:
         env:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
-      - name: Run the Anchore scan for PR
+      - name: Run Anchore scan for PR
         uses: anchore/scan-action@v6
         id: anchore-scan-pr
         with:
