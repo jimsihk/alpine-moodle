@@ -42,7 +42,7 @@ jobs:
           export UPDATE_MOODLE_CODE=true
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
-          unset AUTO_MOODLE_UPDATE UPDATE_MOODLE_CODE
+          unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
