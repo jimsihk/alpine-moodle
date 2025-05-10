@@ -6,6 +6,7 @@ services:
       args:
         - ARG_MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
         - ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+        - ARG_ENABLE_GIT_CLONE=${ARG_ENABLE_GIT_CLONE:-true}
     environment:
       - SITE_URL=http://app:8080
       - MOODLE_SITENAME=Dockerized_Moodle
