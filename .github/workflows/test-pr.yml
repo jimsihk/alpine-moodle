@@ -7,20 +7,11 @@ on:
       - README.md
 
 jobs:
-  build-and-test-pr:
-    strategy:
-      fail-fast: false
-      matrix:
-        test: [standard, slim, multi]
+  prepare:
+    outputs:
+      tag: ${{ steps.meta.outputs.tags }}
     runs-on: ubuntu-latest
     steps:
-      - uses: step-security/harden-runner@v2
-        with:
-          egress-policy: audit
-
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Prepare Meta Data
         id: meta
         uses: docker/metadata-action@v5
@@ -29,6 +20,21 @@ jobs:
             ${{ github.repository }}
           tags: |
             type=sha
+    
+  build-and-test-pr:
+    strategy:
+      fail-fast: false
+      matrix:
+        test: [standard, slim, multi]
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
         if: matrix.test == 'multi'
@@ -42,7 +48,7 @@ jobs:
         run: |
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
-          export TEST_IMAGE_NAME=${{ steps.meta.outputs.tags }}
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           export ARG_MOODLE_PLUGIN_LIST=report_benchmark
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
@@ -51,7 +57,7 @@ jobs:
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          export TEST_IMAGE_NAME=${{ steps.meta.outputs.tags }}
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
@@ -63,7 +69,7 @@ jobs:
         run: |
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
-          export TEST_IMAGE_NAME=${{ steps.meta.outputs.tags }}-slim
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-slim
           export ARG_MOODLE_PLUGIN_LIST=report_benchmark
           export ARG_ENABLE_GIT_CLONE=false
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
@@ -73,7 +79,7 @@ jobs:
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest-slim
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          export TEST_IMAGE_NAME=${{ steps.meta.outputs.tags }}-slim
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-slim
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
@@ -87,17 +93,15 @@ jobs:
         with:
           context: .
           push: false
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ needs.prepare.outputs.tag }}
           platforms: ${{ vars.CONTAINER_ARCH }}
           provenance: false
-          labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
 
       - name: Run Trivy vulnerability scanner for PR
         if: matrix.test == 'standard'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.meta.outputs.tags }}
+          image-ref: ${{ needs.prepare.outputs.tag }}
           format: 'table'
           severity: 'CRITICAL,HIGH'
           exit-code: 0
@@ -109,6 +113,6 @@ jobs:
         uses: anchore/scan-action@v6
         id: anchore-scan-pr
         with:
-          image: ${{ steps.meta.outputs.tags }}
+          image: ${{ needs.prepare.outputs.tag }}
           output-format: table
           fail-build: false
