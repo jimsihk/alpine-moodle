@@ -64,7 +64,7 @@ jobs:
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
           export TEST_IMAGE_NAME=${{ steps.meta.outputs.tags }}-slim
-          ARG_MOODLE_PLUGIN_LIST=report_benchmark
+          export ARG_MOODLE_PLUGIN_LIST=report_benchmark
           export ARG_ENABLE_GIT_CLONE=false
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
