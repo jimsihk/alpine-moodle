@@ -4,7 +4,7 @@ services:
     build:
       context: .
       args:
-        - ARG_MOODLE_PLUGIN_LIST=report_benchmark
+        - ARG_MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
         - ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
     environment:
       - SITE_URL=http://app:8080
