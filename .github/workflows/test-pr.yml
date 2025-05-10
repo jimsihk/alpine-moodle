@@ -56,7 +56,7 @@ jobs:
         env:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
-      - name: Run the Anchore scan action for PR
+      - name: Run the Anchore scan for PR
         uses: anchore/scan-action@v6
         id: anchore-scan-pr
         with:
