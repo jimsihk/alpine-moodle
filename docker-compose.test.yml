@@ -12,8 +12,8 @@ services:
       - SESSION_CACHE_TYPE=redis
       - SESSION_CACHE_HOST=redis
       - SESSION_CACHE_PORT=6379
-      - AUTO_UPDATE_MOODLE=false
-      - UPDATE_MOODLE_CODE=false
+      - AUTO_UPDATE_MOODLE=${AUTO_UPDATE_MOODLE:-false}
+      - UPDATE_MOODLE_CODE=${UPDATE_MOODLE_CODE:-false}
       - DB_TYPE=pgsql
       - DB_HOST=pgbouncer
       - DB_PORT=6432
