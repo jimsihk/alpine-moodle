@@ -51,7 +51,6 @@ jobs:
       - name: Build and Test
         if: matrix.test == 'standard'
         run: |
-          exit 20
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
