@@ -12,6 +12,10 @@ jobs:
       tag: ${{ steps.meta.outputs.tags }}
     runs-on: ubuntu-latest
     steps:
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - name: Prepare Meta Data
         id: meta
         uses: docker/metadata-action@v5
@@ -26,7 +30,8 @@ jobs:
       fail-fast: false
       matrix:
         test: [standard, slim, multi]
-    needs: prepare
+    needs:
+      - prepare
     runs-on: ubuntu-latest
     steps:
       - uses: step-security/harden-runner@v2
@@ -116,3 +121,18 @@ jobs:
           image: ${{ needs.prepare.outputs.tag }}
           output-format: table
           fail-build: false
+
+  final:
+    if: always()
+    needs: 
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Check necessary test status
+        uses: re-actors/alls-green@release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}
