@@ -1,16 +1,16 @@
 ARG ARCH=quay.io/
-FROM ${ARCH}jimsihk/alpine-php-nginx:83.19.5
+FROM ${ARCH}jimsihk/alpine-php-nginx:83.21.0
 
 LABEL Description="Lightweight Moodle container with NGINX & PHP-FPM based on Alpine Linux." \
       Maintainer="99048231+jimsihk@users.noreply.github.com"
 
-# renovate: datasource=repology depName=alpine_3_21/dcron versioning=loose
+# renovate: datasource=repology depName=alpine_3_22/dcron versioning=loose
 ARG DCRON_VERSION="=4.6-r0"
-# renovate: datasource=repology depName=alpine_3_21/libcap versioning=loose
-ARG LIBCAP_VERSION="=2.71-r0"
-# renovate: datasource=repology depName=alpine_3_21/git versioning=loose
-ARG GIT_VERSION="=2.47.2-r0"
-# renovate: datasource=repology depName=alpine_3_21/bash versioning=loose
+# renovate: datasource=repology depName=alpine_3_22/libcap versioning=loose
+ARG LIBCAP_VERSION="=2.76-r0"
+# renovate: datasource=repology depName=alpine_3_22/git versioning=loose
+ARG GIT_VERSION="=2.49.0-r0"
+# renovate: datasource=repology depName=alpine_3_22/bash versioning=loose
 ARG BASH_VERSION="=5.2.37-r0"
 
 ARG ARG_WEB_PATH='/var/www/html'
