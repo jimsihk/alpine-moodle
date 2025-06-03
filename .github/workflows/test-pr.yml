@@ -21,7 +21,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ github.repository }}
+            localhost:5000/${{ github.repository }}
           tags: |
             type=sha
     
@@ -50,19 +50,8 @@ jobs:
         if: matrix.test == 'multi'
         uses: docker/setup-qemu-action@v3
 
-      #- name: Set up containerd image store
-      #  if: matrix.test == 'multi'
-      #  uses: docker/setup-docker-action@v4
-      #  with:
-      #    daemon-config: |
-      #      {
-      #        "debug": true,
-      #        "features": {
-      #          "containerd-snapshotter": true
-      #        }
-      #      }
-
       - name: Set up Docker Buildx
+        if: matrix.test == 'multi'
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: network=host
@@ -117,16 +106,15 @@ jobs:
         with:
           context: .
           push: true # with containerd image store enabled
-          tags: localhost:5000/${{ needs.prepare.outputs.tag }}
+          tags: ${{ needs.prepare.outputs.tag }}
           platforms: ${{ vars.CONTAINER_ARCH }}
           provenance: false
-          #load: true
 
       - name: Run Trivy vulnerability scanner for PR
         if: matrix.test == 'multi'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: localhost:5000/${{ needs.prepare.outputs.tag }}
+          image-ref: ${{ needs.prepare.outputs.tag }}
           format: 'table'
           severity: 'CRITICAL,HIGH'
           exit-code: 0
@@ -138,7 +126,7 @@ jobs:
         uses: anchore/scan-action@v6
         id: anchore-scan-pr
         with:
-          image: localhost:5000/${{ needs.prepare.outputs.tag }}
+          image: ${{ needs.prepare.outputs.tag }}
           output-format: table
           fail-build: false
 
