@@ -21,7 +21,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ github.repository }}
+            localhost:5000/${{ github.repository }}
           tags: |
             type=sha
     
@@ -33,6 +33,11 @@ jobs:
     needs:
       - prepare
     runs-on: ubuntu-latest
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
     steps:
       - uses: step-security/harden-runner@v2
         with:
@@ -46,7 +51,10 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
+        if: matrix.test == 'multi'
         uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
 
       - name: Build and Test
         if: matrix.test == 'standard'
@@ -97,13 +105,13 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: false
+          push: true # with containerd image store enabled
           tags: ${{ needs.prepare.outputs.tag }}
           platforms: ${{ vars.CONTAINER_ARCH }}
           provenance: false
 
       - name: Run Trivy vulnerability scanner for PR
-        if: matrix.test == 'standard'
+        if: matrix.test == 'multi'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ needs.prepare.outputs.tag }}
@@ -114,7 +122,7 @@ jobs:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
       - name: Run Anchore scan for PR
-        if: matrix.test == 'standard'
+        if: matrix.test == 'multi'
         uses: anchore/scan-action@v6
         id: anchore-scan-pr
         with:
