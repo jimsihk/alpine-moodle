@@ -103,7 +103,7 @@ jobs:
           provenance: false
 
       - name: Run Trivy vulnerability scanner for PR
-        if: matrix.test == 'standard'
+        if: matrix.test == 'multi'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ needs.prepare.outputs.tag }}
@@ -114,7 +114,7 @@ jobs:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
 
       - name: Run Anchore scan for PR
-        if: matrix.test == 'standard'
+        if: matrix.test == 'multi'
         uses: anchore/scan-action@v6
         id: anchore-scan-pr
         with:
