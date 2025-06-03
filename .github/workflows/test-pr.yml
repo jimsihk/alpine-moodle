@@ -109,11 +109,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: false
+          push: true # with containerd image store enabled
           tags: ${{ needs.prepare.outputs.tag }}
           platforms: ${{ vars.CONTAINER_ARCH }}
           provenance: false
-          load: true
+          #load: true
 
       - name: Run Trivy vulnerability scanner for PR
         if: matrix.test == 'multi'
