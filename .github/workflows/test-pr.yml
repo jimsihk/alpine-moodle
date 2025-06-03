@@ -45,6 +45,18 @@ jobs:
         if: matrix.test == 'multi'
         uses: docker/setup-qemu-action@v3
 
+      - name: Set up containerd image store
+        if: matrix.test == 'multi'
+        uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "debug": true,
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
