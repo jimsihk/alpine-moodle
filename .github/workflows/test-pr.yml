@@ -101,6 +101,7 @@ jobs:
           tags: ${{ needs.prepare.outputs.tag }}
           platforms: ${{ vars.CONTAINER_ARCH }}
           provenance: false
+          load: true
 
       - name: Run Trivy vulnerability scanner for PR
         if: matrix.test == 'multi'
