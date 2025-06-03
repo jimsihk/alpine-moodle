@@ -77,6 +77,7 @@ ENV MOODLE_GIT_URL=${ARG_MOODLE_GIT_URL} \
     upload_max_filesize=50M \
     max_input_vars=5000 \
     opcache_jit_buffer_size=64M \
+    custom_router=/r.php \
     SESSION_CACHE_PREFIX=mdl \
     AUTO_UPDATE_MOODLE=true \
     UPGRADE_MOODLE_CODE=true \
