@@ -45,8 +45,8 @@ services:
       - AUTO_UPDATE_MOODLE=${AUTO_UPDATE_MOODLE:-false}
       - UPDATE_MOODLE_CODE=${UPDATE_MOODLE_CODE:-false}
     volumes:
-      - moodledata:/var/www/moodledata
-      - moodlehtml:/var/www/html
+      - ./tmpdata/moodledata:/var/www/moodledata
+      - ./tmpdata/moodlehtml:/var/www/html
     depends_on:
       - postgres
 
@@ -60,5 +60,5 @@ services:
 
 volumes:
   postgres: null
-  moodledata: null
-  moodlehtml: null
+  #moodledata: null
+  #moodlehtml: null
