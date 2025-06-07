@@ -28,10 +28,10 @@ fi
 #"$MOODLE_UTL_PATH"/clean-moodle-code "${TEMP_MOODLE_PATH}"
 echo "Copying from ${TEMP_MOODLE_PATH} to ${WEB_PATH}..."
 cp -paR "${TEMP_MOODLE_PATH}"/. "$WEB_PATH"/
-WKDIR="$(pwd)"
-cd "${WEB_PATH}"
-git config --local --add safe.directory "${WEB_PATH}"
-cd "${WKDIR}"
+#WKDIR="$(pwd)"
+#cd "${WEB_PATH}"
+#git config --local --add safe.directory "${WEB_PATH}"
+#cd "${WKDIR}"
 echo "Cleaning up ${TEMP_MOODLE_PATH}..."
 rm -rf "${TEMP_MOODLE_PATH}"
 # Verify Moodle version if same as specified in DockerFile
