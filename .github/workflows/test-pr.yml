@@ -91,7 +91,7 @@ jobs:
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
-          rm -rf ./tmpdata
+          #rm -rf ./tmpdata #TODO: fix permission denied error
 
       - name: Build and Test (Slim)
         if: matrix.test == 'slim'
