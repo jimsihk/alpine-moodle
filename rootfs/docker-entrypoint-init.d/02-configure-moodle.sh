@@ -40,6 +40,11 @@ fi
 # Give it another 3 seconds.
 sleep 3;
 
+# Always trust the source code path
+if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then
+  git config --global --add safe.directory "${WEB_PATH}"
+fi
+
 # Verify the source code integrity
 # - Check if new volume is mounted that Moodle code directory will be empty
 # - Download the Moodle source code in the same way as specified in DockerFile

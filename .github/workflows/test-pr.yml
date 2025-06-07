@@ -83,7 +83,6 @@ jobs:
           echo "Test - Moodle update by Git with volume..."
           mkdir -p ./tmpdata/moodledata ./tmpdata/moodlehtml
           chmod -R 777 ./tmpdata
-          chown -R 65534:65534 ./tmpdata
           export TEST_IMAGE_NAME=${{ github.repository }}:405.404.0
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
