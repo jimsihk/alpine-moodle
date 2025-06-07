@@ -10,6 +10,13 @@ services:
     volumes:
       - postgres:/var/lib/postgresql/data
 
+  init:
+    image: alpine
+    volumes:
+      - moodledata:/var/www/moodledata
+      - moodlehtml:/var/www/html
+    command: sh -c "chown -R 65534:65534 /var/www/html /var/www/moodledata"
+
   app:
     image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
     build: .
@@ -45,10 +52,11 @@ services:
       - AUTO_UPDATE_MOODLE=${AUTO_UPDATE_MOODLE:-false}
       - UPDATE_MOODLE_CODE=${UPDATE_MOODLE_CODE:-false}
     volumes:
-      - ./tmpdata/moodledata:/var/www/moodledata
-      - ./tmpdata/moodlehtml:/var/www/html
+      - moodledata:/var/www/moodledata
+      - moodlehtml:/var/www/html
     depends_on:
       - postgres
+      - init
 
   sut:
     image: alpine:latest
@@ -60,5 +68,5 @@ services:
 
 volumes:
   postgres: null
-  #moodledata: null
-  #moodlehtml: null
+  moodledata: ./tmpdata/moodledata
+  moodlehtml: ./tmpdata/moodlehtml
