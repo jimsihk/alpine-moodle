@@ -11,13 +11,13 @@ services:
       - postgres:/var/lib/postgresql/data
 
   moodle:
-    image: jimsihk/alpine-moodle
+    image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
     build: .
     restart: unless-stopped
     environment:
       - LANG=en_US.UTF-8
       - LANGUAGE=en_US:en
-      - SITE_URL=http://localhost
+      - SITE_URL=http://app:8080
       - DB_TYPE=pgsql
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -28,7 +28,7 @@ services:
       - SSLPROXY=false
       - MOODLE_EMAIL=user@example.com
       - MOODLE_LANGUAGE=en
-      - MOODLE_SITENAME=New-Site
+      - MOODLE_SITENAME=Dockerized_Moodle
       - MOODLE_USERNAME=moodleuser
       - MOODLE_PASSWORD=PLEASE_CHANGEME
       - SMTP_HOST=smtp.gmail.com
@@ -42,14 +42,21 @@ services:
       - SESSION_CACHE_HOST=postgres
       - SESSION_CACHE_PORT=5432
       - SESSION_CACHE_PREFIX=mdl
-      - AUTO_UPDATE_MOODLE=true
-    ports:
-      - 80:8080
+      - AUTO_UPDATE_MOODLE=${AUTO_UPDATE_MOODLE:-false}
+      - UPDATE_MOODLE_CODE=${UPDATE_MOODLE_CODE:-false}
     volumes:
       - moodledata:/var/www/moodledata
       - moodlehtml:/var/www/html
     depends_on:
       - postgres
+
+  sut:
+    image: alpine:latest
+    depends_on:
+      - app
+    command: /tmp/run_tests.sh
+    volumes:
+      - "./run_tests.sh:/tmp/run_tests.sh:ro"
 
 volumes:
   postgres: null
