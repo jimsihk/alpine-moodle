@@ -283,9 +283,9 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
     if [ -z "$UPDATE_MOODLE_CODE" ] || [ "$UPDATE_MOODLE_CODE" = true ]; then
       echo "Checking moodle code version..."
       GIT_TRACE=1
-      git -C "${WEB_PATH}" fetch origin "$MODOLE_GIT_BRANCH" --depth=1 "$MOODLE_GIT_COMMIT" && git -C "${WEB_PATH}" checkout "$MODOLE_GIT_BRANCH"
+      git -C "${WEB_PATH}" fetch origin "$MODOLE_GIT_BRANCH" --depth=1 "$MOODLE_GIT_COMMIT" && git -C "${WEB_PATH}" checkout "$MOODLE_GIT_COMMIT" -B "$MODOLE_GIT_BRANCH"
       GIT_TRACE=0
-      /usr/libexec/moodle/clean-moodle-code "${WEB_PATH}"
+      #/usr/libexec/moodle/clean-moodle-code "${WEB_PATH}"
     fi
   fi
   php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/upgrade.php --non-interactive --allow-unstable
