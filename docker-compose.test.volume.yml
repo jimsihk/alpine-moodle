@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres:/var/lib/postgresql/data
 
-  moodle:
+  app:
     image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
     build: .
     restart: unless-stopped
