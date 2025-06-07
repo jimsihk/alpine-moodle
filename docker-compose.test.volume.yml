@@ -14,6 +14,7 @@ services:
     image: ${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:local}
     build: .
     restart: unless-stopped
+    user: "65534:65534"
     environment:
       - LANG=en_US.UTF-8
       - LANGUAGE=en_US:en
