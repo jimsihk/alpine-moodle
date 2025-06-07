@@ -288,7 +288,7 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
     if [ -z "$UPDATE_MOODLE_CODE" ] || [ "$UPDATE_MOODLE_CODE" = true ]; then
       echo "Checking moodle code version..."
       GIT_TRACE=1
-      git -C "${WEB_PATH}" config --local --add safe.directory "${WEB_PATH}"
+      #git -C "${WEB_PATH}" config --local --add safe.directory "${WEB_PATH}"
       git -C "${WEB_PATH}" rev-parse HEAD
       git -C "${WEB_PATH}" status
       echo "Fetching moodle code..."
