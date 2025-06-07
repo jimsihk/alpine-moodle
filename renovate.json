@@ -23,8 +23,8 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": [
-        "^Dockerfile$"
+      "managerFilePatterns": [
+        "/^Dockerfile$/"
       ],
       "matchStrings": [
         "\\# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?) branch=(?<currentValue>.*?)( versioning=(?<versioning>.*?))?\\sARG .*?_GIT_COMMIT='?(?<currentDigest>.*)'\\s"
@@ -33,8 +33,8 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [
-        "^Dockerfile$"
+      "managerFilePatterns": [
+        "/^Dockerfile$/"
       ],
       "matchStrings": [
         "\\# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))\\s(ENV|ARG) .*?_VERSION=\\\"=(?<currentValue>.*)\\\"\\s"
