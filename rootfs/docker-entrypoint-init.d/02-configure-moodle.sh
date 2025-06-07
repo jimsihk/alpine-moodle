@@ -42,7 +42,7 @@ sleep 3;
 
 # Always trust the source code path
 if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then
-  git -C "${WEB_PATH}" config --local --add safe.directory "${WEB_PATH}"
+  git -C "${WEB_PATH}" config --add safe.directory "${WEB_PATH}"
 fi
 
 # Verify the source code integrity
