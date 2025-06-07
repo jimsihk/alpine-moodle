@@ -49,7 +49,6 @@ services:
       - moodlehtml:/var/www/html
     depends_on:
       - postgres
-      - init
 
   sut:
     image: alpine:latest
