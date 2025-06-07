@@ -81,6 +81,7 @@ jobs:
           echo '#'
           echo '###############################'
           echo "Test - Moodle update by Git with volume..."
+          mkdir ./tmpdata && chmod 777 ./tmpdata
           export TEST_IMAGE_NAME=${{ github.repository }}:405.404.0
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
@@ -89,6 +90,7 @@ jobs:
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
+          rm -rf ./tmpdata
 
       - name: Build and Test (Slim)
         if: matrix.test == 'slim'
