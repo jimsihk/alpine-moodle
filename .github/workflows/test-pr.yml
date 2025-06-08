@@ -110,11 +110,13 @@ jobs:
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
 
-          export ARG_MODOLE_GIT_COMMIT='7acd85a1aa1526f541c56571195d72453dc891cd'
+          export ARG_MODOLE_GIT_BRANCH='MOODLE_405_STABLE'
+          export ARG_MODOLE_GIT_COMMIT='812ef23c00ab0f1b118808556568850549ba0aa5'
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
 
-          export ARG_MODOLE_GIT_COMMIT='812ef23c00ab0f1b118808556568850549ba0aa5'
+          export ARG_MODOLE_GIT_BRANCH='MOODLE_500_STABLE'
+          export ARG_MODOLE_GIT_COMMIT='ffb6475f6ade46492a02cfb17dda8e603c60f7ea'
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
 
