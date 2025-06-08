@@ -48,8 +48,8 @@ services:
       - AUTO_UPDATE_MOODLE=${AUTO_UPDATE_MOODLE:-false}
       - UPDATE_MOODLE_CODE=${UPDATE_MOODLE_CODE:-false}
     volumes:
-      - ./tmpdata/moodledata:/var/www/moodledata
-      - ./tmpdata/moodlehtml:/var/www/html
+      - ${LOCAL_PATH:-./tmpdata}/moodledata:/var/www/moodledata
+      - ${LOCAL_PATH:-./tmpdata}/moodlehtml:/var/www/html
     depends_on:
       - postgres
 

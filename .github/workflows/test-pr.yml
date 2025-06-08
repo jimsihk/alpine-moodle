@@ -82,9 +82,21 @@ jobs:
         if: matrix.test == 'volume'
         run: |
           echo '###############################'
+          echo "Test - run with bind volume..."
+          export LOCAL_PATH='./tmpdata'
+          mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
+          chmod -R 777 "${LOCAL_PATH}"
+          export ARG_MODOLE_GIT_COMMIT='812ef23c00ab0f1b118808556568850549ba0aa5'
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
+          docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.volume.yml down --remove-orphans
+
+          echo '#'
+          echo '###############################'
           echo "Test - Moodle update by Git with volume..."
-          mkdir -p ./tmpdata/moodledata ./tmpdata/moodlehtml
-          chmod -R 777 ./tmpdata
+          export LOCAL_PATH='./tmpdata2'
+          mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
+          chmod -R 777 "${LOCAL_PATH}"
           export TEST_IMAGE_NAME=${{ github.repository }}:405.404.0
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
 
@@ -92,11 +104,11 @@ jobs:
           export UPDATE_MOODLE_CODE=true
 
           export ARG_MODOLE_GIT_COMMIT='7acd85a1aa1526f541c56571195d72453dc891cd'
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-1
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
 
           export ARG_MODOLE_GIT_COMMIT='812ef23c00ab0f1b118808556568850549ba0aa5'
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-2
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
 
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
