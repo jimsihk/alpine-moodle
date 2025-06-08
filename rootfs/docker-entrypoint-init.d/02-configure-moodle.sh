@@ -40,11 +40,6 @@ fi
 # Give it another 3 seconds.
 sleep 3;
 
-# Always trust the source code path
-#if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then
- # git -C "${WEB_PATH}" config --add safe.directory "${WEB_PATH}"
-#fi
-
 # Verify the source code integrity
 # - Check if new volume is mounted that Moodle code directory will be empty
 # - Download the Moodle source code in the same way as specified in DockerFile
@@ -286,11 +281,8 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
   php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/maintenance.php --enable
   if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then
     if [ -z "$UPDATE_MOODLE_CODE" ] || [ "$UPDATE_MOODLE_CODE" = true ]; then
-      #WKDIR="$(pwd)"
       echo "Checking moodle code version..."
       GIT_TRACE=1
-      #cd "${WEB_PATH}"
-      #git config --local --add safe.directory "${WEB_PATH}"
       git -C "${WEB_PATH}" rev-parse HEAD
       git -C "${WEB_PATH}" status
       echo "Fetching moodle code..."
@@ -301,8 +293,7 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
       git -C "${WEB_PATH}" rev-parse HEAD
       git -C "${WEB_PATH}" status
       GIT_TRACE=0
-      #cd "${WKDIR}"
-      #/usr/libexec/moodle/clean-moodle-code "${WEB_PATH}"
+      /usr/libexec/moodle/clean-moodle-code "${WEB_PATH}"
     fi
   fi
   php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/upgrade.php --non-interactive --allow-unstable

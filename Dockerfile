@@ -30,6 +30,7 @@ RUN apk add --no-cache \
         libcap${LIBCAP_VERSION} \
         bash${BASH_VERSION} \
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then apk add --no-cache git${GIT_VERSION}; fi \
+    # Always trust the web path to support bind volume of any host path permission
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then git config --system --add safe.directory "${WEB_PATH}"; fi \
     && chown nobody:nobody /usr/sbin/crond \
     && setcap cap_setgid=ep /usr/sbin/crond \
