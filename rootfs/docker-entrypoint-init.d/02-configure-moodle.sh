@@ -290,6 +290,7 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
       git -C "${WEB_PATH}" status
       echo "Updating moodle code..."
       git -C "${WEB_PATH}" checkout "$MOODLE_GIT_COMMIT" -B "$MODOLE_GIT_BRANCH"
+      git -C "${WEB_PATH}" reset --hard "${MOODLE_GIT_COMMIT}"
       git -C "${WEB_PATH}" rev-parse HEAD
       git -C "${WEB_PATH}" status
       GIT_TRACE=0
