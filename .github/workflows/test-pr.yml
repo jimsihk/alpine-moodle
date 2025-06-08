@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test: [standard, slim, multi]
+        test: [standard, slim, multi, volume]
     needs:
       - prepare
     runs-on: ubuntu-latest
@@ -78,17 +78,27 @@ jobs:
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
-          echo '#'
+      - name: Test Bind Volume Mount
+        if: matrix.test == 'volume'
+        run: |
           echo '###############################'
           echo "Test - Moodle update by Git with volume..."
           mkdir -p ./tmpdata/moodledata ./tmpdata/moodlehtml
           chmod -R 777 ./tmpdata
           export TEST_IMAGE_NAME=${{ github.repository }}:405.404.0
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
+
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
+
+          export ARG_MODOLE_GIT_COMMIT='7acd85a1aa1526f541c56571195d72453dc891cd'
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-1
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
+
+          export ARG_MODOLE_GIT_COMMIT='812ef23c00ab0f1b118808556568850549ba0aa5'
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-2
+          docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
+
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
           #rm -rf ./tmpdata #TODO: fix permission denied error
