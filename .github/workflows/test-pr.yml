@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test: [standard, slim, multi, volume]
+        test: [standard, slim, multi, volume1, volume2]
     needs:
       - prepare
     runs-on: ubuntu-latest
@@ -79,11 +79,11 @@ jobs:
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
       - name: Test Bind Volume Mount
-        if: matrix.test == 'volume'
+        if: matrix.test == 'volume1'
         run: |
           echo '###############################'
           echo "Test - run with bind volume..."
-          export LOCAL_PATH='./tmpdata'
+          export LOCAL_PATH='./tmpdata/'"${{ matrix.test }}"
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
           export ARG_MODOLE_GIT_COMMIT='812ef23c00ab0f1b118808556568850549ba0aa5'
@@ -93,10 +93,12 @@ jobs:
           echo "${LOCAL_PATH}"
           ls -l "${LOCAL_PATH}"
 
-          echo '#'
+      - name: Test Upgrade with Bind Volume Mount
+        if: matrix.test == 'volume2'
+        run: |
           echo '###############################'
           echo "Test - Moodle update by Git with volume..."
-          export LOCAL_PATH='./tmpdata2'
+          export LOCAL_PATH='./tmpdata'"${{ matrix.test }}"
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
           export ARG_MODOLE_GIT_COMMIT='xxx'
