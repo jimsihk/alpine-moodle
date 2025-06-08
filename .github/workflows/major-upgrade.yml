@@ -46,8 +46,8 @@ jobs:
           input_file=Dockerfile
           # Extract values using grep and cut
           moodle_git_url=$(grep 'ARG ARG_MOODLE_GIT_URL' "$input_file" | cut -d"'" -f2)
-          moodle_git_branch=$(grep 'ARG ARG_MODOLE_GIT_BRANCH' "$input_file" | cut -d"'" -f2)
-          moodle_git_commit=$(grep 'ARG ARG_MODOLE_GIT_COMMIT' "$input_file" | cut -d"'" -f2)
+          moodle_git_branch=$(grep 'ARG ARG_MOODLE_GIT_BRANCH' "$input_file" | cut -d"'" -f2)
+          moodle_git_commit=$(grep 'ARG ARG_MOODLE_GIT_COMMIT' "$input_file" | cut -d"'" -f2)
           # Format Moodle version number
           TMP_REV=$(echo $moodle_git_branch | grep -oE '[0-9]+' | rev)
           TMP_MINOR=$(echo $TMP_REV | cut -c -2 | rev | sed 's/^0*//')
