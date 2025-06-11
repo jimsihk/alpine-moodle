@@ -86,8 +86,8 @@ jobs:
           export LOCAL_PATH='./tmpdata/'"${{ matrix.test }}"
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
-          export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d '"')"
-          export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d '"')"
+          export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d '''')"
+          export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d '''')"
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
