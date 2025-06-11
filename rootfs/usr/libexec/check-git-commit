@@ -16,6 +16,7 @@ then
       TARGET_COMMIT="$2"
     
       echo "Downloaded Git commit at $CODE_PATH: $CURRENT_COMMIT"
+      git -C "$CODE_PATH" status
     
       if [ "$CURRENT_COMMIT" != "$TARGET_COMMIT" ]
       then

@@ -20,7 +20,7 @@ then
     echo "Clone from git repo: ${INPUT_GIT_URL} to ${DOWNLOAD_PATH}..."
     git clone "${INPUT_GIT_URL}" --branch "${INPUT_GIT_BRANCH}" --single-branch --depth 1 "${DOWNLOAD_PATH}"/
     # Make sure the current HEAD is the defined commit
-    echo "Fetch and reset as "${INPUT_GIT_BRANCH}:${INPUT_GIT_COMMIT}..."
+    echo "Fetch and reset as ${INPUT_GIT_BRANCH}:${INPUT_GIT_COMMIT}..."
     git -C "${DOWNLOAD_PATH}" fetch origin "${INPUT_GIT_BRANCH}" --depth 1 "${INPUT_GIT_COMMIT}"
     git -C "${DOWNLOAD_PATH}" reset --hard "${INPUT_GIT_COMMIT}"
     git -C "${DOWNLOAD_PATH}" clean -dfx
