@@ -102,7 +102,7 @@ jobs:
           export LOCAL_PATH='./tmpdata'"${{ matrix.test }}"
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
-          export ARG_MOODLE_GIT_COMMIT='xxx'
+          #export ARG_MOODLE_GIT_COMMIT='xxx'
           export TEST_IMAGE_NAME=${{ github.repository }}:405.404.0
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           echo "${LOCAL_PATH}"
@@ -111,13 +111,16 @@ jobs:
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
 
-          export ARG_MOODLE_GIT_BRANCH='MOODLE_405_STABLE'
-          export ARG_MOODLE_GIT_COMMIT='812ef23c00ab0f1b118808556568850549ba0aa5'
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
+          #export ARG_MOODLE_GIT_BRANCH='MOODLE_405_STABLE'
+          #export ARG_MOODLE_GIT_COMMIT='812ef23c00ab0f1b118808556568850549ba0aa5'
+          #export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
+          export TEST_IMAGE_NAME=${{ github.repository }}:latest
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
 
-          export ARG_MOODLE_GIT_BRANCH='MOODLE_500_STABLE'
-          export ARG_MOODLE_GIT_COMMIT='ffb6475f6ade46492a02cfb17dda8e603c60f7ea'
+          #export ARG_MOODLE_GIT_BRANCH='MOODLE_500_STABLE'
+          #export ARG_MOODLE_GIT_COMMIT='ffb6475f6ade46492a02cfb17dda8e603c60f7ea'
+          export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
+          export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
 
