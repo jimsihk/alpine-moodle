@@ -102,10 +102,10 @@ jobs:
           export LOCAL_PATH='./tmpdata'"${{ matrix.test }}"
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
-          #export TEST_IMAGE_NAME=${{ github.repository }}:latest
-          export ARG_MOODLE_GIT_BRANCH='MOODLE_405_STABLE'
-          export ARG_MOODLE_GIT_COMMIT='a57387fe2d8faa2e6fa36246f4dc59825c307e7f'
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
+          export TEST_IMAGE_NAME=${{ github.repository }}:latest
+          #export ARG_MOODLE_GIT_BRANCH='MOODLE_405_STABLE'
+          #export ARG_MOODLE_GIT_COMMIT='a57387fe2d8faa2e6fa36246f4dc59825c307e7f'
+          #export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           echo "${LOCAL_PATH}"
           ls -l "${LOCAL_PATH}"
