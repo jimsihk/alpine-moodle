@@ -30,6 +30,8 @@ RUN apk add --no-cache \
         libcap${LIBCAP_VERSION} \
         bash${BASH_VERSION} \
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then apk add --no-cache git${GIT_VERSION}; fi \
+    # Always trust the web path to support bind volume of any host path permission
+    && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then git config --system --add safe.directory "${WEB_PATH}"; fi \
     && chown nobody:nobody /usr/sbin/crond \
     && setcap cap_setgid=ep /usr/sbin/crond \
     # Clean up unused files from base image
@@ -40,12 +42,12 @@ USER nobody
 
 # Change MOODLE_XX_STABLE for new versions
 ARG ARG_MOODLE_GIT_URL='https://github.com/moodle/moodle.git'
-ARG ARG_MODOLE_GIT_BRANCH='MOODLE_405_STABLE'
+ARG ARG_MOODLE_GIT_BRANCH='MOODLE_405_STABLE'
 # renovate: datasource=git-refs depName=https://github.com/moodle/moodle branch=MOODLE_405_STABLE
-ARG ARG_MODOLE_GIT_COMMIT='812ef23c00ab0f1b118808556568850549ba0aa5'
+ARG ARG_MOODLE_GIT_COMMIT='812ef23c00ab0f1b118808556568850549ba0aa5'
 ENV MOODLE_GIT_URL=${ARG_MOODLE_GIT_URL} \
-    MODOLE_GIT_BRANCH=${ARG_MODOLE_GIT_BRANCH} \
-    MOODLE_GIT_COMMIT=${ARG_MODOLE_GIT_COMMIT} \
+    MOODLE_GIT_BRANCH=${ARG_MOODLE_GIT_BRANCH} \
+    MOODLE_GIT_COMMIT=${ARG_MOODLE_GIT_COMMIT} \
     LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     SITE_URL=http://localhost \

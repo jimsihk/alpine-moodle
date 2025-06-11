@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test: [standard, slim, multi]
+        test: [standard, slim, multi, volume1, volume2]
     needs:
       - prepare
     runs-on: ubuntu-latest
@@ -66,6 +66,7 @@ jobs:
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
 
+          echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest
@@ -76,6 +77,49 @@ jobs:
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
+
+      - name: Test Bind Volume Mount
+        if: matrix.test == 'volume1'
+        run: |
+          echo '###############################'
+          echo "Test - run with bind volume..."
+          export LOCAL_PATH='./tmpdata/'"${{ matrix.test }}"
+          mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
+          chmod -R 777 "${LOCAL_PATH}"
+          export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
+          export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
+          docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.volume.yml down --remove-orphans
+          echo "${LOCAL_PATH}"
+          ls -l "${LOCAL_PATH}"
+
+      - name: Test Upgrade with Bind Volume Mount
+        if: matrix.test == 'volume2'
+        run: |
+          echo '###############################'
+          echo "Test - Moodle update by Git with volume..."
+          export LOCAL_PATH='./tmpdata'"${{ matrix.test }}"
+          mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
+          chmod -R 777 "${LOCAL_PATH}"
+          export TEST_IMAGE_NAME=${{ github.repository }}:latest
+          #export ARG_MOODLE_GIT_BRANCH='MOODLE_405_STABLE'
+          #export ARG_MOODLE_GIT_COMMIT='a57387fe2d8faa2e6fa36246f4dc59825c307e7f'
+          #export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
+          docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
+          echo "${LOCAL_PATH}"
+          ls -l "${LOCAL_PATH}"
+
+          export AUTO_UPDATE_MOODLE=true
+          export UPDATE_MOODLE_CODE=true
+          export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
+          export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
+          docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
+
+          docker compose --file docker-compose.test.volume.yml down --remove-orphans
+          unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
+          #rm -rf ./tmpdata #TODO: fix permission denied error
 
       - name: Build and Test (Slim)
         if: matrix.test == 'slim'
@@ -88,6 +132,7 @@ jobs:
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
 
+          echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest-slim

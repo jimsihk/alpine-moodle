@@ -283,7 +283,15 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
     if [ -z "$UPDATE_MOODLE_CODE" ] || [ "$UPDATE_MOODLE_CODE" = true ]; then
       echo "Checking moodle code version..."
       GIT_TRACE=1
-      git -C "${WEB_PATH}" fetch origin "$MODOLE_GIT_BRANCH" --depth=1 && git -C "${WEB_PATH}" checkout FETCH_HEAD -B "$MODOLE_GIT_BRANCH"
+      git -C "${WEB_PATH}" rev-parse HEAD
+      git -C "${WEB_PATH}" status
+      echo "Fetching moodle code..."
+      git -C "${WEB_PATH}" fetch origin "$MOODLE_GIT_BRANCH" --depth=1 "$MOODLE_GIT_COMMIT"
+      git -C "${WEB_PATH}" status
+      echo "Updating moodle code..."
+      git -C "${WEB_PATH}" checkout "$MOODLE_GIT_COMMIT" -B "$MOODLE_GIT_BRANCH"
+      git -C "${WEB_PATH}" reset --hard "${MOODLE_GIT_COMMIT}"
+      git -C "${WEB_PATH}" status
       GIT_TRACE=0
       /usr/libexec/moodle/clean-moodle-code "${WEB_PATH}"
     fi
