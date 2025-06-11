@@ -69,7 +69,7 @@ jobs:
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
-          export TEST_IMAGE_NAME=${{ github.repository }}:405.404.0
+          export TEST_IMAGE_NAME=${{ github.repository }}:latest
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           export AUTO_UPDATE_MOODLE=true
