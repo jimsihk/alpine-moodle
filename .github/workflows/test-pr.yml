@@ -168,7 +168,7 @@ jobs:
 
       - name: Run Anchore scan for PR
         if: matrix.test == 'multi'
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7
         id: anchore-scan-pr
         with:
           image: ${{ needs.prepare.outputs.tag }}
