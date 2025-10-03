@@ -46,7 +46,6 @@ services:
       - AUTH_TYPE=scram-sha-256
       - POOL_MODE=session
       - IGNORE_STARTUP_PARAMETERS=options,extra_float_digits
-      - ADMIN_USERS=moodledbuser
     depends_on:
       - postgres
 
