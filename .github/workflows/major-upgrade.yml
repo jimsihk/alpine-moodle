@@ -51,6 +51,10 @@ jobs:
           # Format Moodle version number
           TMP_REV=$(echo $moodle_git_branch | grep -oE '[0-9]+' | rev)
           TMP_MINOR=$(echo $TMP_REV | cut -c -2 | rev | sed 's/^0*//')
+          if [ -z "$TMP_MINOR" ]
+          then
+            TMP_MINOR="0"
+          fi
           TMP_MAJOR=$(echo $TMP_REV | cut -c 3- | rev)
           TMP_VERSION="$TMP_MAJOR.$TMP_MINOR"
 
