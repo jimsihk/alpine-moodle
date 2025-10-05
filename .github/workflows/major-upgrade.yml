@@ -74,7 +74,9 @@ jobs:
           moodle_version=$(echo $CURRENT_BRANCH | grep -oE '[0-9]+')
           case ${{ inputs.version }} in
             major)
-              next_version=$(awk -v n=$moodle_version 'BEGIN { print int((n + 99) / 100) * 100 }')
+              major_part=$((moodle_version / 100))
+              next_major=$((major_part + 1))
+              next_version="${next_major}00"
               ;;
             minor)
               next_version=$((moodle_version + 1))
