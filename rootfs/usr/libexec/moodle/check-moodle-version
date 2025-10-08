@@ -7,7 +7,7 @@
 
 if [ -n "$1" ]
 then
-  VERSION_FILE="${WEB_PATH}"/version.php
+  VERSION_FILE="${WEB_PATH}"/public/version.php
   if [ -f $VERSION_FILE ]
   then
     MOODLE_VERSION=$(grep "\$version" "${WEB_PATH}"/version.php | sed 's/ //g' | cut -d';' -f1 | cut -d '=' -f2)
