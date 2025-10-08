@@ -23,6 +23,7 @@ then
   else
     echo "Moodle version file not found at $VERSION_FILE!"
     exit 3
+  fi
 else
   echo "Missing argument: <target commit hash>"
   exit 2
