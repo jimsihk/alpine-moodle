@@ -7,10 +7,22 @@
 
 if [ -n "$1" ]
 then
-  MOODLE_VERSION=$(grep "\$version" "${WEB_PATH}"/version.php | sed 's/ //g' | cut -d';' -f1 | cut -d '=' -f2)
-  echo "Downloaded Moodle version: $MOODLE_VERSION"
-  /usr/libexec/check-git-commit "${WEB_PATH}" "$1"
-  exit $?
+  VERSION_FILE="${WEB_PATH}"/version.php
+  if [ -f $VERSION_FILE ]
+  then
+    MOODLE_VERSION=$(grep "\$version" "${WEB_PATH}"/version.php | sed 's/ //g' | cut -d';' -f1 | cut -d '=' -f2)
+    if [ -z "MOODLE_VERSION" ]
+    then
+      echo "Moodle version not identified!"
+      exit 4
+    else
+      echo "Downloaded Moodle version: $MOODLE_VERSION"
+      /usr/libexec/check-git-commit "${WEB_PATH}" "$1"
+      exit $?
+    fi
+  else
+    echo "Moodle version file not found at $VERSION_FILE!"
+    exit 3
 else
   echo "Missing argument: <target commit hash>"
   exit 2
