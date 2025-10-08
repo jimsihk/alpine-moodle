@@ -75,7 +75,7 @@ install_plugin() {
     echo "======DEBUG:======"
     pwd
     ls -l "${script_moodle_plugin_component_tmp_dest}"
-    ls -l "${script_moodle_plugin_component_tmp_dest}"/*/"
+    ls -l "${script_moodle_plugin_component_tmp_dest}/*/"
     mv "${script_moodle_plugin_component_tmp_dest}/${plugin_base_dirname}/" "${script_moodle_plugin_component_dest}"
 }
 
