@@ -32,6 +32,11 @@ echo "Cleaning up ${TEMP_MOODLE_PATH}..."
 rm -rf "${TEMP_MOODLE_PATH}"
 # Verify Moodle version if same as specified in DockerFile
 "$MOODLE_UTL_PATH"/check-moodle-version "${MOODLE_GIT_COMMIT}"
+CHECK_STATUS=$?
+if [ $CHECK_STATUS -ne 0 ]
+then
+  exit $CHECK_STATUS
+fi
 
 # 2. Install system plugins
 #
@@ -54,3 +59,8 @@ echo "Downloading Moodle system plugins..."
 # 3. Install custom plugins
 echo "Downloading Moodle plugins..."
 "$MOODLE_UTL_PATH"/download-moodle-plugin
+CHECK_STATUS=$?
+if [ $CHECK_STATUS -ne 0 ]
+then
+  exit $CHECK_STATUS
+fi
