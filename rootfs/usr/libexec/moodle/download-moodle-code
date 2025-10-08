@@ -42,19 +42,21 @@ fi
 #
 # Install plugin for Redis Sentinel cache store
 # Reference: https://github.com/catalyst/moodle-cachestore_redissentinel
+PLUGIN_PATH="${WEB_PATH}/public"
+
 echo "Downloading Moodle system plugins..."
 "$MOODLE_UTL_PATH"/install-git-plugin \
   "${REDISSENTINEL_PLUGIN_GIT_URL}"  \
   "${REDISSENTINEL_PLUGIN_GIT_BRANCH}" \
   "${REDISSENTINEL_PLUGIN_GIT_COMMIT}" \
-  "${WEB_PATH}/cache/stores/redissentinel/"
+  "${PLUGIN_PATH}/cache/stores/redissentinel/"
 # Install plugin for memcached cache store which was removed from Moodle core since 4.2
 # Reference: https://tracker.moodle.org/browse/MDL-77161
 "$MOODLE_UTL_PATH"/install-git-plugin \
   "${MEMCACHED_PLUGIN_GIT_URL}" \
   "${MEMCACHED_PLUGIN_GIT_BRANCH}" \
   "${MEMCACHED_PLUGIN_GIT_COMMIT}" \
-  "${WEB_PATH}/cache/stores/memcached/"
+  "${PLUGIN_PATH}/cache/stores/memcached/"
 
 # 3. Install custom plugins
 echo "Downloading Moodle plugins..."
