@@ -153,7 +153,7 @@ function install_path($plugin_type, $plugin_name) {
     );
 
     if (array_key_exists($plugin_type, $install_path_directory_from_type)) {
-        return $MOODLE_APP . '/' . $install_path_directory_from_type[$plugin_type]['dir'] .'/'. $plugin_name;
+        return $MOODLE_APP . '/public/' . $install_path_directory_from_type[$plugin_type]['dir'] .'/'. $plugin_name;
     }
 
     file_put_contents("php://stderr", "ERROR: " . $plugin_type . " is not a valid type!" . "\n");
