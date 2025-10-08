@@ -73,9 +73,12 @@ install_plugin() {
     plugin_base_dirname=$(basename "${script_moodle_plugin_component_tmp_dest}"/$(ls -d "${script_moodle_plugin_component_tmp_dest}"/* | head -n 1))
     echo "Installing to: ${script_moodle_plugin_component_dest}"
     echo "======DEBUG:======"
+    WKDIR="`pwd`"
+    cd "${script_moodle_plugin_component_tmp_dest}"
     pwd
-    ls -l "${script_moodle_plugin_component_tmp_dest}"
-    ls -l "${script_moodle_plugin_component_tmp_dest}/*/"
+    ls -l
+    ls -l */
+    cd "${WKDIR}"
     mv "${script_moodle_plugin_component_tmp_dest}/${plugin_base_dirname}/" "${script_moodle_plugin_component_dest}"
 }
 
