@@ -72,6 +72,7 @@ install_plugin() {
     unzip -qo "${script_moodle_plugin_component_zip}" -d "${script_moodle_plugin_component_tmp_dest}"
     plugin_base_dirname=$(basename "${script_moodle_plugin_component_tmp_dest}"/$(ls -d "${script_moodle_plugin_component_tmp_dest}"/* | head -n 1))
     echo "Installing to: ${script_moodle_plugin_component_dest}"
+    ls -l "${script_moodle_plugin_component_tmp_dest}"
     mv "${script_moodle_plugin_component_tmp_dest}/${plugin_base_dirname}/" "${script_moodle_plugin_component_dest}"
 }
 
