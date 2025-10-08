@@ -251,20 +251,6 @@ fi
 # Avoid writing the config file
 chmod 440 "${WEB_PATH}"/config.php
 
-# Fix publicpaths check (deprecated, keep for upgrade capability)
-patch_publicpaths() {
-  PUBLICPATHS_FILE="${WEB_PATH}"/lib/classes/check/environment/publicpaths.php
-  set +eo pipefail
-  grep "wwwroot\ \. \"\:8080\"" "$PUBLICPATHS_FILE" > /dev/null
-  GREPRESULT=$?
-  set -eo pipefail
-  if [ "$GREPRESULT" -eq 0 ]; then
-    echo "Reverting publicpaths.php"
-    sed -i 's/wwwroot\ \. \"\:8080\"/wwwroot/g' "$PUBLICPATHS_FILE"
-  fi
-}
-patch_publicpaths
-
 # Update Moodle
 if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
   # Check current moodle maintenance status and keep in maintenance mode in case of manual enablement of it
