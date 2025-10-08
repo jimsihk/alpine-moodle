@@ -10,7 +10,7 @@ then
   VERSION_FILE="${WEB_PATH}"/public/version.php
   if [ -f $VERSION_FILE ]
   then
-    MOODLE_VERSION=$(grep "\$version" "${WEB_PATH}"/version.php | sed 's/ //g' | cut -d';' -f1 | cut -d '=' -f2)
+    MOODLE_VERSION=$(grep "\$version" "${VERSION_FILE}" | sed 's/ //g' | cut -d';' -f1 | cut -d '=' -f2)
     if [ -z "MOODLE_VERSION" ]
     then
       echo "Moodle version not identified!"

@@ -99,7 +99,7 @@ if (empty($MOODLE_PLUGIN_COMPONENT_NAME)) {
 if (empty($MOODLE_RELEASE)) {
     define('MOODLE_INTERNAL', true);
     define('MATURITY_STABLE',   200);
-    require($MOODLE_APP . '/version.php');
+    require($MOODLE_APP . '/public/version.php');
     preg_match('/^([0-9]+)\.([0-9]+)/', $release, $matches);
     $MOODLE_RELEASE = $matches[0];
 }
