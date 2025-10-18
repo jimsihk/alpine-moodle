@@ -44,7 +44,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up QEMU
         if: matrix.test == 'multi'
@@ -168,7 +168,7 @@ jobs:
 
       - name: Run Anchore scan for PR
         if: matrix.test == 'multi'
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7
         id: anchore-scan-pr
         with:
           image: ${{ needs.prepare.outputs.tag }}

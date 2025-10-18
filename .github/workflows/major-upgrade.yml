@@ -38,7 +38,7 @@ jobs:
           echo "dryrun: ${{ inputs.dryrun }}"
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Retrieve Moodle source configration
         id: current_moodle
@@ -51,6 +51,10 @@ jobs:
           # Format Moodle version number
           TMP_REV=$(echo $moodle_git_branch | grep -oE '[0-9]+' | rev)
           TMP_MINOR=$(echo $TMP_REV | cut -c -2 | rev | sed 's/^0*//')
+          if [ -z "$TMP_MINOR" ]
+          then
+            TMP_MINOR="0"
+          fi
           TMP_MAJOR=$(echo $TMP_REV | cut -c 3- | rev)
           TMP_VERSION="$TMP_MAJOR.$TMP_MINOR"
 
@@ -74,7 +78,9 @@ jobs:
           moodle_version=$(echo $CURRENT_BRANCH | grep -oE '[0-9]+')
           case ${{ inputs.version }} in
             major)
-              next_version=$(awk -v n=$moodle_version 'BEGIN { print int((n + 99) / 100) * 100 }')
+              major_part=$((moodle_version / 100))
+              next_major=$((major_part + 1))
+              next_version="${next_major}00"
               ;;
             minor)
               next_version=$((moodle_version + 1))

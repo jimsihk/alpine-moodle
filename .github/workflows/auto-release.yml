@@ -34,7 +34,7 @@ jobs:
           private_key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           token: ${{ steps.generate_release_token.outputs.token }}
           fetch-depth: 0
@@ -133,7 +133,7 @@ jobs:
       - name: Get changed container files
         if: steps.get_commit_sha.outputs.previous_tag != steps.get_commit_sha.outputs.last_commit
         id: changed-files
-        uses: tj-actions/changed-files@v46
+        uses: tj-actions/changed-files@v47
         with:
           base_sha: ${{ steps.get_commit_sha.outputs.previous_tag }}
           files: |

@@ -17,7 +17,7 @@ services:
       - UPDATE_MOODLE_CODE=${UPDATE_MOODLE_CODE:-false}
       - DB_TYPE=pgsql
       - DB_HOST=pgbouncer
-      - DB_PORT=6432
+      - DB_PORT=5432
       - DB_NAME=moodle
       - DB_USER=moodledbuser
       - DB_PASS=moodledbpass
@@ -37,17 +37,15 @@ services:
       - POSTGRES_DB=moodle
 
   pgbouncer:
-    image: bitnami/pgbouncer:latest
+    image: edoburu/pgbouncer:latest
     environment:
-      - POSTGRESQL_USERNAME=moodledbuser
-      - POSTGRESQL_PASSWORD=moodledbpass
-      - POSTGRESQL_HOST=postgres
-      - PGBOUNCER_DATABASE=moodle
-      - PGBOUNCER_AUTH_TYPE=scram-sha-256
-      - PGBOUNCER_POOL_MODE=session
-      #- ADMIN_USERS=moodledbuser
-      - PGBOUNCER_IGNORE_STARTUP_PARAMETERS=options,extra_float_digits
-      #- PGBOUNCER_PORT=5432
+      - DB_USER=moodledbuser
+      - DB_PASSWORD=moodledbpass
+      - DB_HOST=postgres
+      - DB_NAME=moodle
+      - AUTH_TYPE=scram-sha-256
+      - POOL_MODE=session
+      - IGNORE_STARTUP_PARAMETERS=options,extra_float_digits
     depends_on:
       - postgres
 
