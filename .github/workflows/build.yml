@@ -3,7 +3,7 @@ name: Build and push docker image
 on:
   push:
     tags: ['*']
-    branches: ["dev"]
+    branches: ["4.5"]
     paths-ignore:
       - README.md
       - .github/workflows/update-dockerhub-desc.yml
