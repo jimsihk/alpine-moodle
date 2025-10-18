@@ -36,10 +36,10 @@ jobs:
           TAGS="${{ env.IMAGE_NAME }}:${VERSION}"
           TAGS_SLIM="${{ env.IMAGE_NAME }}:${VERSION}-slim"
 
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            TAGS="$TAGS,${{ env.IMAGE_NAME }}:latest"
-            TAGS_SLIM="$TAGS_SLIM,${{ env.IMAGE_NAME }}:latest-slim"
-          fi
+          #if [[ $GITHUB_REF == refs/tags/* ]]; then
+          #  TAGS="$TAGS,${{ env.IMAGE_NAME }}:latest"
+          #  TAGS_SLIM="$TAGS_SLIM,${{ env.IMAGE_NAME }}:latest-slim"
+          #fi
           
           for TAG in $(echo $TAGS | sed 's/,/ /g'); do
             TAGS="$TAGS,quay.io/$TAG"
