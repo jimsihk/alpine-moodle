@@ -69,7 +69,7 @@ jobs:
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
-          export TEST_IMAGE_NAME=${{ github.repository }}:latest
+          export TEST_IMAGE_NAME=${{ github.repository }}:405.500.1
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           export AUTO_UPDATE_MOODLE=true
@@ -102,7 +102,7 @@ jobs:
           export LOCAL_PATH='./tmpdata'"${{ matrix.test }}"
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
-          export TEST_IMAGE_NAME=${{ github.repository }}:latest
+          export TEST_IMAGE_NAME=${{ github.repository }}:405.500.1
           #export ARG_MOODLE_GIT_BRANCH='MOODLE_405_STABLE'
           #export ARG_MOODLE_GIT_COMMIT='a57387fe2d8faa2e6fa36246f4dc59825c307e7f'
           #export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
@@ -135,7 +135,7 @@ jobs:
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
-          export TEST_IMAGE_NAME=${{ github.repository }}:latest-slim
+          export TEST_IMAGE_NAME=${{ github.repository }}:405.500.1-slim
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-slim
           export AUTO_UPDATE_MOODLE=true
