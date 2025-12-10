@@ -144,7 +144,7 @@ jobs:
 
       - name: Create PR
         if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.generate_release_token.outputs.token }}
           add-paths: Dockerfile,README.md
