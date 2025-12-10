@@ -38,7 +38,7 @@ jobs:
           echo "dryrun: ${{ inputs.dryrun }}"
 
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Retrieve Moodle source configration
         id: current_moodle
