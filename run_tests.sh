@@ -5,13 +5,12 @@ MAX_WAIT=900  # 15 minutes
 
 # Check that the database is available
 echo "Waiting for moodle to be ready"
-ELAPSED=0
+START_TIME=$(date +%s)
 while ! nc -w 1 app 8080; do
     # Show some progress
     echo -n '.';
     sleep 1;
-    ELAPSED=$((ELAPSED+1))
-    if [ $ELAPSED -ge $MAX_WAIT ]; then
+    if [ $(( $(date +%s) - START_TIME )) -ge $MAX_WAIT ]; then
         echo ""
         echo "Error: Timed out after ${MAX_WAIT}s waiting for moodle to start"
         exit 1
