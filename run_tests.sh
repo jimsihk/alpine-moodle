@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-apk --no-cache add curl
 
 # Check that the database is available
 echo "Waiting for moodle to be ready"
@@ -12,4 +11,4 @@ echo "moodle is ready"
 # Give it another 3 seconds.
 sleep 3;
 
-curl --silent --fail http://app:8080 | grep '>Dockerized_Moodle<'
+wget -q -O - http://app:8080 | grep '>Dockerized_Moodle<'
