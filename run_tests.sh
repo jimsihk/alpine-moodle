@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -e
 
-MAX_WAIT=900  # 15 minutes
+MAX_WAIT=600  # 10 minutes
 
 # Check that the database is available
 echo "Waiting for moodle to be ready"
