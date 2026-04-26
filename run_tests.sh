@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+set -e
 
 # Check that the database is available
 echo "Waiting for moodle to be ready"
