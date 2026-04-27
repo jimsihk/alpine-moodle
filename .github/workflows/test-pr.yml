@@ -18,7 +18,7 @@ jobs:
 
       - name: Prepare Meta Data
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             localhost:5000/${{ github.repository }}
