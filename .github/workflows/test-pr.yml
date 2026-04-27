@@ -33,6 +33,7 @@ jobs:
     needs:
       - prepare
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     services:
       registry:
         image: registry:3
