@@ -30,7 +30,7 @@ services:
       - pgbouncer
 
   postgres:
-    image: postgres:17
+    image: postgres:18
     environment:
       - POSTGRES_PASSWORD=moodledbpass
       - POSTGRES_USER=moodledbuser
