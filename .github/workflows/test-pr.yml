@@ -148,7 +148,7 @@ jobs:
 
       - name: Test build multi-arch
         if: matrix.test == 'multi'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true # to local registry
