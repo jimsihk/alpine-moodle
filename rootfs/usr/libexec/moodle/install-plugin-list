@@ -12,7 +12,7 @@ Script to install moodle plugin(s) by component name (ex. 'mod_jitsi').
 It requires PHP cli, PHP json, unzip
 
 ENVIRONMENT VARS:
-MOODLE_APP                  path to moodle code
+MOODLE_APP                  path to the public Moodle code tree
 MOODLE_API_PLUGIN_INFO      url to plugin info json
 MOODLE_PLUGIN_LIST          plugin list separated by space
 MOODLE_RELEASE              Moodle release (ex: '3.9'). Default is gotten from version.php
@@ -81,7 +81,7 @@ get_plugin_url_md5_dest() {
 <?php
 
 # vars
-$MOODLE_APP = getenv('MOODLE_APP') ?: '/var/www/html';
+$MOODLE_APP = getenv('MOODLE_APP') ?: '/var/www/html/public';
 $MOODLE_API_PLUGIN_INFO = getenv('MOODLE_API_PLUGIN_INFO') ?: 'https://download.moodle.org/api/1.3/pluginfo.php';
 $MOODLE_PLUGIN_COMPONENT_NAME = getenv('script_moodle_plugin_component_name');
 $MOODLE_RELEASE = getenv('MOODLE_RELEASE');
@@ -220,7 +220,7 @@ moodle_plugin_list=${MOODLE_PLUGIN_LIST:-}
 moodle_plugin_comma_list=`echo ${moodle_plugin_list}|awk -v OFS="," '$1=$1'`
 IFS=',' read -r -a script_moodle_plugin_list <<< "${moodle_plugin_comma_list// /}"
 export script_moodle_plugin_list
-export script_moodle_app=${MOODLE_APP:-/var/www/html}
+export script_moodle_app=${MOODLE_APP:-/var/www/html/public}
 export script_moodle_api_plugin_list=${MOODLE_API_PLUGIN_INFO:-https://download.moodle.org/api/1.3/pluginfo.php}
 export script_moodle_plugin_force=
 export script_moodle_plugin_maturity=0

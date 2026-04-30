@@ -14,7 +14,9 @@ ARG GIT_VERSION="=2.49.1-r0"
 ARG BASH_VERSION="=5.2.37-r0"
 
 ARG ARG_WEB_PATH='/var/www/html'
+ARG ARG_PUBLIC_WEB_PATH='/var/www/html/public'
 ENV WEB_PATH=${ARG_WEB_PATH}
+ENV PUBLIC_WEB_PATH=${ARG_PUBLIC_WEB_PATH}
 
 # controls whether the remaining steps should use git clone or simply download from git repo
 ARG ARG_ENABLE_GIT_CLONE='true'
@@ -42,12 +44,13 @@ USER nobody
 
 # Change MOODLE_XX_STABLE for new versions
 ARG ARG_MOODLE_GIT_URL='https://github.com/moodle/moodle.git'
-ARG ARG_MOODLE_GIT_BRANCH='MOODLE_500_STABLE'
-# renovate: datasource=git-refs depName=https://github.com/moodle/moodle branch=MOODLE_500_STABLE
-ARG ARG_MOODLE_GIT_COMMIT='ad13d9c1e25fa9f96a9cc0ed14b981d58d26c590'
+ARG ARG_MOODLE_GIT_BRANCH='MOODLE_502_STABLE'
+# renovate: datasource=git-refs depName=https://github.com/moodle/moodle branch=MOODLE_502_STABLE
+ARG ARG_MOODLE_GIT_COMMIT='8f545baf8d7f1f995ae32899a9376f95df231cc8'
 ENV MOODLE_GIT_URL=${ARG_MOODLE_GIT_URL} \
     MOODLE_GIT_BRANCH=${ARG_MOODLE_GIT_BRANCH} \
     MOODLE_GIT_COMMIT=${ARG_MOODLE_GIT_COMMIT} \
+    MOODLE_APP=${ARG_PUBLIC_WEB_PATH} \
     LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     SITE_URL=http://localhost \
