@@ -254,6 +254,13 @@ chmod 440 "${WEB_PATH}"/config.php
 # Fix publicpaths check (deprecated, keep for upgrade capability)
 patch_publicpaths() {
   PUBLICPATHS_FILE="${WEB_PATH}"/lib/classes/check/environment/publicpaths.php
+  if [ ! -f "${PUBLICPATHS_FILE}" ] && [ -f "${PUBLIC_WEB_PATH}"/lib/classes/check/environment/publicpaths.php ]; then
+    PUBLICPATHS_FILE="${PUBLIC_WEB_PATH}"/lib/classes/check/environment/publicpaths.php
+  fi
+  if [ ! -f "${PUBLICPATHS_FILE}" ]; then
+    echo "Skipped publicpaths.php patch"
+    return 0
+  fi
   set +eo pipefail
   grep "wwwroot\ \. \"\:8080\"" "$PUBLICPATHS_FILE" > /dev/null
   GREPRESULT=$?
