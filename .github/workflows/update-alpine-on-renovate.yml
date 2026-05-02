@@ -113,7 +113,6 @@ jobs:
                     else
                       .[$repo].version // empty
                     end
-                    // empty
                   '
             )"
 
