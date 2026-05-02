@@ -9,7 +9,7 @@ from typing import Dict, Iterable, List
 RENOVATE_REPOLOGY_PATTERN = re.compile(
     r"^# renovate: datasource=repology depName=alpine_[0-9]+_[0-9]+/(?P<package_name>[^\s]+) versioning=loose$"
 )
-PACKAGE_VERSION_PATTERN = re.compile(r'^(?:ARG|ENV) (?P<arg_name>[A-Z0-9_]+)="=[^"]*"$')
+PACKAGE_VERSION_PATTERN = re.compile(r'^ARG (?P<arg_name>[A-Z0-9_]+)="=[^"]*"$')
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,9 +29,12 @@ def extract_package_lines(content: str) -> Dict[str, str]:
     package_lines: Dict[str, str] = {}
     lines = content.splitlines()
 
-    for index, line in enumerate(lines[:-1]):
+    for index, line in enumerate(lines):
         package_match = RENOVATE_REPOLOGY_PATTERN.match(line)
         if package_match is None:
+            continue
+
+        if index + 1 >= len(lines):
             continue
 
         arg_match = PACKAGE_VERSION_PATTERN.match(lines[index + 1])
