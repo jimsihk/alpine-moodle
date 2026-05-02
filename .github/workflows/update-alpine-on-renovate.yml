@@ -61,8 +61,13 @@ jobs:
             printf '%s\n' "${from_image/\$\{ARCH\}/${arch}}"
           }
 
-          old_tag="$(sed -nE 's#^FROM .*jimsihk/alpine-php-nginx:([^[:space:]]+)$#\1#p' "${base_file}" | head -n 1)"
-          new_tag="$(sed -nE 's#^FROM .*jimsihk/alpine-php-nginx:([^[:space:]]+)$#\1#p' "${head_file}" | head -n 1)"
+          extract_base_tag() {
+            local file="$1"
+            sed -nE 's#^FROM .*jimsihk/alpine-php-nginx:([^[:space:]]+)$#\1#p' "${file}" | head -n 1
+          }
+
+          old_tag="$(extract_base_tag "${base_file}")"
+          new_tag="$(extract_base_tag "${head_file}")"
 
           if [ -z "${old_tag}" ] || [ -z "${new_tag}" ]; then
             echo "::error::Could not determine base image tags from Dockerfile"

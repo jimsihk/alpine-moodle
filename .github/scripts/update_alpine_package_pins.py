@@ -3,7 +3,7 @@ import argparse
 import pathlib
 import re
 import sys
-from typing import List
+from typing import Dict, List
 
 
 PACKAGE_LINES = {
@@ -27,8 +27,8 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_versions(assignments: List[str]) -> dict[str, str]:
-    versions: dict[str, str] = {}
+def build_versions(assignments: List[str]) -> Dict[str, str]:
+    versions: Dict[str, str] = {}
     for assignment in assignments:
         key, separator, value = assignment.partition("=")
         if separator == "" or not key or not value:
