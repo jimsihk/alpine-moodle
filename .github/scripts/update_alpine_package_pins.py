@@ -9,7 +9,7 @@ from typing import Dict, Iterable, List
 RENOVATE_REPOLOGY_PATTERN = re.compile(
     r"^# renovate: datasource=repology depName=alpine_[0-9]+_[0-9]+/(?P<package_name>[^\s]+) versioning=loose$"
 )
-PACKAGE_VERSION_PATTERN = re.compile(r'^ARG (?P<arg_name>[A-Z0-9_]+)="=[^"]*"$')
+PACKAGE_VERSION_PATTERN = re.compile(r'^ARG (?P<arg_name>[A-Z0-9_]+)="[^"]*"$')
 
 
 def parse_args() -> argparse.Namespace:
@@ -27,6 +27,7 @@ def parse_args() -> argparse.Namespace:
 
 def extract_package_lines(content: str) -> Dict[str, str]:
     package_lines: Dict[str, str] = {}
+    package_line_numbers: Dict[str, int] = {}
     lines = content.splitlines()
 
     for index, line in enumerate(lines):
@@ -43,9 +44,13 @@ def extract_package_lines(content: str) -> Dict[str, str]:
 
         arg_name = arg_match.group("arg_name")
         if arg_name in package_lines:
-            raise ValueError(f"Duplicate package version key found in Dockerfile: {arg_name}")
+            raise ValueError(
+                f"Duplicate package version key found in Dockerfile: {arg_name} "
+                f"(lines {package_line_numbers[arg_name]} and {index + 2})"
+            )
 
         package_lines[arg_name] = package_match.group("package_name")
+        package_line_numbers[arg_name] = index + 2
 
     if not package_lines:
         raise ValueError("Could not find Alpine package version pins in Dockerfile")
@@ -74,7 +79,7 @@ def build_versions(assignments: List[str], expected_keys: Iterable[str]) -> Dict
 def replace_or_fail(content: str, pattern: str, replacement: str) -> str:
     updated, count = re.subn(pattern, replacement, content, count=1, flags=re.MULTILINE)
     if count != 1:
-        raise ValueError(f"Could not update pattern: {pattern}")
+        raise ValueError(f"Could not update pattern exactly once (matched {count} times): {pattern}")
     return updated
 
 
@@ -94,7 +99,7 @@ def main() -> int:
             )
             content = replace_or_fail(
                 content,
-                rf'^ARG {arg_name}="=[^"]*"$',
+                rf'^ARG {arg_name}="[^"]*"$',
                 f'ARG {arg_name}="={versions[arg_name]}"',
             )
 
