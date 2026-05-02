@@ -1,0 +1,159 @@
+name: Update Alpine package pins for Renovate PRs
+
+on:
+  pull_request:
+    branches: ["dev"]
+    paths:
+      - Dockerfile
+
+permissions:
+  contents: write
+
+jobs:
+  sync-alpine-package-pins:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout Renovate PR branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Detect Alpine major/minor transition
+        id: detect
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+
+          if [ "${PR_AUTHOR}" != 'renovate[bot]' ]; then
+            echo "skip_reason=PR author is not Renovate" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          case "${PR_HEAD_REF}" in
+            renovate/*) ;;
+            *)
+              echo "skip_reason=PR branch is not a Renovate branch" >> "${GITHUB_OUTPUT}"
+              exit 0
+              ;;
+          esac
+
+          base_file="$(mktemp)"
+          head_file="$(mktemp)"
+          git show "${BASE_SHA}:Dockerfile" > "${base_file}"
+          git show "${HEAD_SHA}:Dockerfile" > "${head_file}"
+
+          extract_image_ref() {
+            local file="$1"
+            local arch
+            local from_image
+            arch="$(sed -nE 's/^ARG ARCH=//p' "${file}" | head -n 1)"
+            from_image="$(sed -nE 's/^FROM (.*)$/\1/p' "${file}" | head -n 1)"
+            printf '%s\n' "${from_image/\$\{ARCH\}/${arch}}"
+          }
+
+          old_tag="$(sed -nE 's#^FROM .*jimsihk/alpine-php-nginx:([^[:space:]]+)$#\1#p' "${base_file}" | head -n 1)"
+          new_tag="$(sed -nE 's#^FROM .*jimsihk/alpine-php-nginx:([^[:space:]]+)$#\1#p' "${head_file}" | head -n 1)"
+
+          if [ -z "${old_tag}" ] || [ -z "${new_tag}" ]; then
+            echo "::error::Could not determine base image tags from Dockerfile"
+            exit 1
+          fi
+
+          if [ "${old_tag}" = "${new_tag}" ]; then
+            echo "skip_reason=Base image tag did not change" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          old_image="$(extract_image_ref "${base_file}")"
+          new_image="$(extract_image_ref "${head_file}")"
+
+          old_release="$(docker run --rm --entrypoint cat "${old_image}" /etc/alpine-release)"
+          new_release="$(docker run --rm --entrypoint cat "${new_image}" /etc/alpine-release)"
+          old_series="$(printf '%s' "${old_release}" | cut -d '.' -f 1,2)"
+          new_series="$(printf '%s' "${new_release}" | cut -d '.' -f 1,2)"
+
+          if [ "${old_series}" = "${new_series}" ]; then
+            echo "skip_reason=Alpine major/minor version did not change" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo "ready=true" >> "${GITHUB_OUTPUT}"
+          echo "old_tag=${old_tag}" >> "${GITHUB_OUTPUT}"
+          echo "new_tag=${new_tag}" >> "${GITHUB_OUTPUT}"
+          echo "old_series=${old_series}" >> "${GITHUB_OUTPUT}"
+          echo "new_series=${new_series}" >> "${GITHUB_OUTPUT}"
+          echo "new_repo=alpine_$(printf '%s' "${new_series}" | tr '.' '_')" >> "${GITHUB_OUTPUT}"
+
+      - name: Resolve package versions for new Alpine series
+        id: versions
+        if: steps.detect.outputs.ready == 'true'
+        env:
+          ALPINE_REPO: ${{ steps.detect.outputs.new_repo }}
+        run: |
+          set -euo pipefail
+
+          resolve_package_version() {
+            local package_name="$1"
+            local resolved_version
+            resolved_version="$(
+              curl -fsSL "https://repology.org/api/v1/project/${package_name}" \
+                | jq -r --arg repo "${ALPINE_REPO}" '
+                    .[$repo].version
+                    // (if type == "array" then (map(select(.repo == $repo))[0].version // empty) else empty end)
+                    // empty
+                  '
+            )"
+
+            if [ -z "${resolved_version}" ] || [ "${resolved_version}" = "null" ]; then
+              echo "::error::Could not resolve ${package_name} for ${ALPINE_REPO}"
+              exit 1
+            fi
+
+            printf '%s\n' "${resolved_version}"
+          }
+
+          echo "dcron=$(resolve_package_version dcron)" >> "${GITHUB_OUTPUT}"
+          echo "libcap=$(resolve_package_version libcap)" >> "${GITHUB_OUTPUT}"
+          echo "git=$(resolve_package_version git)" >> "${GITHUB_OUTPUT}"
+          echo "bash=$(resolve_package_version bash)" >> "${GITHUB_OUTPUT}"
+
+      - name: Update Dockerfile package pins
+        if: steps.detect.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/update_alpine_package_pins.py \
+            --dockerfile Dockerfile \
+            --alpine-repo "${{ steps.detect.outputs.new_repo }}" \
+            --package-version "DCRON_VERSION=${{ steps.versions.outputs.dcron }}" \
+            --package-version "LIBCAP_VERSION=${{ steps.versions.outputs.libcap }}" \
+            --package-version "GIT_VERSION=${{ steps.versions.outputs.git }}" \
+            --package-version "BASH_VERSION=${{ steps.versions.outputs.bash }}"
+
+      - name: Commit updated Alpine package pins
+        if: steps.detect.outputs.ready == 'true'
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          NEW_SERIES: ${{ steps.detect.outputs.new_series }}
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- Dockerfile; then
+            echo "Dockerfile already matches Alpine ${NEW_SERIES}"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Dockerfile
+          git commit -m "Adjust Alpine package pins for ${NEW_SERIES}"
+          git push origin "HEAD:${PR_HEAD_REF}"

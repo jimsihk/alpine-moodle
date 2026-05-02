@@ -37,6 +37,8 @@ Repository: https://github.com/jimsihk/alpine-moodle
 
 Moodle version and package dependencies are monitored and automatically updated through pull requests by Renovate: https://github.com/renovatebot/renovate
 
+When Renovate updates the `jimsihk/alpine-php-nginx` base image in `Dockerfile`, GitHub Actions also refreshes the Alpine package pins in that same PR if the image moves to a new Alpine major/minor series.
+
 [![Nightly Build](https://github.com/jimsihk/alpine-moodle/actions/workflows/nightly.yml/badge.svg)](https://github.com/jimsihk/alpine-moodle/actions/workflows/nightly.yml)
 
 A nightly build in GitHub Action scans for changes, then performs tagging and publishes a newer release on container registries.
