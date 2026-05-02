@@ -60,10 +60,9 @@ jobs:
       - name: Build and Test
         if: matrix.test == 'standard'
         run: |
-          LOCAL_TEST_IMAGE_NAME="$(echo '${{ needs.prepare.outputs.tag }}' | sed 's#^localhost:5000/##')"
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
-          export TEST_IMAGE_NAME="${LOCAL_TEST_IMAGE_NAME}"
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           export ARG_MOODLE_PLUGIN_LIST=report_benchmark
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
@@ -73,7 +72,7 @@ jobs:
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          export TEST_IMAGE_NAME="${LOCAL_TEST_IMAGE_NAME}"
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
@@ -83,7 +82,6 @@ jobs:
       - name: Test Bind Volume Mount
         if: matrix.test == 'volume1'
         run: |
-          LOCAL_TEST_IMAGE_NAME="$(echo '${{ needs.prepare.outputs.tag }}' | sed 's#^localhost:5000/##')"
           echo '###############################'
           echo "Test - run with bind volume..."
           export LOCAL_PATH='./tmpdata/'"${{ matrix.test }}"
@@ -91,7 +89,7 @@ jobs:
           chmod -R 777 "${LOCAL_PATH}"
           export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
           export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
-          export TEST_IMAGE_NAME="${LOCAL_TEST_IMAGE_NAME}"
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
           echo "${LOCAL_PATH}"
@@ -100,7 +98,6 @@ jobs:
       - name: Test Upgrade with Bind Volume Mount
         if: matrix.test == 'volume2'
         run: |
-          LOCAL_TEST_IMAGE_NAME="$(echo '${{ needs.prepare.outputs.tag }}' | sed 's#^localhost:5000/##')"
           echo '###############################'
           echo "Test - Moodle update by Git with volume..."
           export LOCAL_PATH='./tmpdata'"${{ matrix.test }}"
@@ -118,7 +115,7 @@ jobs:
           export UPDATE_MOODLE_CODE=true
           export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
           export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
-          export TEST_IMAGE_NAME="${LOCAL_TEST_IMAGE_NAME}"
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
 
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
@@ -128,10 +125,9 @@ jobs:
       - name: Build and Test (Slim)
         if: matrix.test == 'slim'
         run: |
-          LOCAL_TEST_IMAGE_NAME="$(echo '${{ needs.prepare.outputs.tag }}' | sed 's#^localhost:5000/##')-slim"
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
-          export TEST_IMAGE_NAME="${LOCAL_TEST_IMAGE_NAME}"
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}-slim"
           export ARG_MOODLE_PLUGIN_LIST=report_benchmark
           export ARG_ENABLE_GIT_CLONE=false
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
@@ -142,7 +138,7 @@ jobs:
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest-slim
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          export TEST_IMAGE_NAME="${LOCAL_TEST_IMAGE_NAME}"
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}-slim"
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
