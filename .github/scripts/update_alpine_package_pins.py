@@ -6,8 +6,9 @@ import sys
 from typing import Dict, Iterable, List
 
 
+ALPINE_REPO_PATTERN = r"alpine_[0-9]+_[0-9]+"
 RENOVATE_REPOLOGY_PATTERN = re.compile(
-    r"^# renovate: datasource=repology depName=alpine_[0-9]+_[0-9]+/(?P<package_name>[^\s]+) versioning=loose$"
+    rf"^# renovate: datasource=repology depName={ALPINE_REPO_PATTERN}/(?P<package_name>[^\s]+) versioning=loose$"
 )
 PACKAGE_VERSION_PATTERN = re.compile(r'^ARG (?P<arg_name>[A-Z0-9_]+)="[^"]*"$')
 
@@ -77,9 +78,11 @@ def build_versions(assignments: List[str], expected_keys: Iterable[str]) -> Dict
 
 
 def replace_or_fail(content: str, pattern: str, replacement: str) -> str:
-    updated, count = re.subn(pattern, replacement, content, count=1, flags=re.MULTILINE)
-    if count != 1:
-        raise ValueError(f"Could not update pattern exactly once (matched {count} times): {pattern}")
+    updated, replacement_count = re.subn(pattern, replacement, content, count=1, flags=re.MULTILINE)
+    if replacement_count != 1:
+        raise ValueError(
+            f"Could not update pattern exactly once (matched {replacement_count} times): {pattern}"
+        )
     return updated
 
 
@@ -94,7 +97,7 @@ def main() -> int:
         for arg_name, package_name in package_lines.items():
             content = replace_or_fail(
                 content,
-                rf"^(# renovate: datasource=repology depName=)alpine_[0-9]+_[0-9]+/{package_name}( versioning=loose)$",
+                rf"^(# renovate: datasource=repology depName=){ALPINE_REPO_PATTERN}/{package_name}( versioning=loose)$",
                 rf"\1{args.alpine_repo}/{package_name}\2",
             )
             content = replace_or_fail(
