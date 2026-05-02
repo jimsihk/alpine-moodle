@@ -9,7 +9,7 @@ if [ -n "$1" ]
 then
   MOODLE_VERSION=$(grep "\$version" "${PUBLIC_WEB_PATH}"/version.php | sed 's/ //g' | cut -d';' -f1 | cut -d '=' -f2)
   echo "Downloaded Moodle version: $MOODLE_VERSION"
-  /usr/libexec/check-git-commit "${WEB_PATH}" "$1"
+  /usr/libexec/check-git-commit "${PUBLIC_WEB_PATH}" "$1"
   exit $?
 else
   echo "Missing argument: <target commit hash>"
