@@ -3,15 +3,13 @@ import argparse
 import pathlib
 import re
 import sys
-from typing import Dict, List
+from typing import Dict, Iterable, List
 
 
-PACKAGE_LINES = {
-    "DCRON_VERSION": "dcron",
-    "LIBCAP_VERSION": "libcap",
-    "GIT_VERSION": "git",
-    "BASH_VERSION": "bash",
-}
+RENOVATE_REPOLOGY_PATTERN = re.compile(
+    r"^# renovate: datasource=repology depName=alpine_[0-9]+_[0-9]+/(?P<package_name>[^\s]+) versioning=loose$"
+)
+PACKAGE_VERSION_PATTERN = re.compile(r'^(?:ARG|ENV) (?P<arg_name>[A-Z0-9_]+)="=[^"]*"$')
 
 
 def parse_args() -> argparse.Namespace:
@@ -27,17 +25,43 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def build_versions(assignments: List[str]) -> Dict[str, str]:
+def extract_package_lines(content: str) -> Dict[str, str]:
+    package_lines: Dict[str, str] = {}
+    lines = content.splitlines()
+
+    for index, line in enumerate(lines[:-1]):
+        package_match = RENOVATE_REPOLOGY_PATTERN.match(line)
+        if package_match is None:
+            continue
+
+        arg_match = PACKAGE_VERSION_PATTERN.match(lines[index + 1])
+        if arg_match is None:
+            continue
+
+        arg_name = arg_match.group("arg_name")
+        if arg_name in package_lines:
+            raise ValueError(f"Duplicate package version key found in Dockerfile: {arg_name}")
+
+        package_lines[arg_name] = package_match.group("package_name")
+
+    if not package_lines:
+        raise ValueError("Could not find Alpine package version pins in Dockerfile")
+
+    return package_lines
+
+
+def build_versions(assignments: List[str], expected_keys: Iterable[str]) -> Dict[str, str]:
+    expected = set(expected_keys)
     versions: Dict[str, str] = {}
     for assignment in assignments:
         key, separator, value = assignment.partition("=")
         if separator == "" or not key or not value:
             raise ValueError(f"Invalid package version assignment: {assignment}")
-        if key not in PACKAGE_LINES:
+        if key not in expected:
             raise ValueError(f"Unsupported package version key: {key}")
         versions[key] = value
 
-    missing = sorted(set(PACKAGE_LINES) - set(versions))
+    missing = sorted(expected - set(versions))
     if missing:
         raise ValueError(f"Missing package versions for: {', '.join(missing)}")
 
@@ -54,11 +78,12 @@ def replace_or_fail(content: str, pattern: str, replacement: str) -> str:
 def main() -> int:
     try:
         args = parse_args()
-        versions = build_versions(args.package_version)
         dockerfile_path = pathlib.Path(args.dockerfile)
         content = dockerfile_path.read_text()
+        package_lines = extract_package_lines(content)
+        versions = build_versions(args.package_version, package_lines)
 
-        for arg_name, package_name in PACKAGE_LINES.items():
+        for arg_name, package_name in package_lines.items():
             content = replace_or_fail(
                 content,
                 rf"^(# renovate: datasource=repology depName=)alpine_[0-9]+_[0-9]+/{package_name}( versioning=loose)$",
