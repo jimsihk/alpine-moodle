@@ -108,8 +108,11 @@ jobs:
             resolved_version="$(
               curl -fsSL "https://repology.org/api/v1/project/${package_name}" \
                 | jq -r --arg repo "${ALPINE_REPO}" '
-                    .[$repo].version
-                    // (if type == "array" then (map(select(.repo == $repo))[0].version // empty) else empty end)
+                    if type == "array" then
+                      map(select(.repo == $repo))[0].version // empty
+                    else
+                      .[$repo].version // empty
+                    end
                     // empty
                   '
             )"
