@@ -58,6 +58,12 @@ jobs:
             local from_image
             arch="$(sed -nE 's/^ARG ARCH=//p' "${file}" | head -n 1)"
             from_image="$(sed -nE 's/^FROM (.*)$/\1/p' "${file}" | head -n 1)"
+
+            if [ -z "${arch}" ] || [ -z "${from_image}" ]; then
+              echo "::error::Could not determine image reference from ${file}"
+              exit 1
+            fi
+
             printf '%s\n' "${from_image/\$\{ARCH\}/${arch}}"
           }
 
@@ -82,8 +88,16 @@ jobs:
           old_image="$(extract_image_ref "${base_file}")"
           new_image="$(extract_image_ref "${head_file}")"
 
-          old_release="$(docker run --rm --entrypoint cat "${old_image}" /etc/alpine-release)"
-          new_release="$(docker run --rm --entrypoint cat "${new_image}" /etc/alpine-release)"
+          if ! old_release="$(docker run --rm --entrypoint cat "${old_image}" /etc/alpine-release)"; then
+            echo "::error::Failed to read Alpine release from ${old_image}"
+            exit 1
+          fi
+
+          if ! new_release="$(docker run --rm --entrypoint cat "${new_image}" /etc/alpine-release)"; then
+            echo "::error::Failed to read Alpine release from ${new_image}"
+            exit 1
+          fi
+
           old_series="$(printf '%s' "${old_release}" | cut -d '.' -f 1,2)"
           new_series="$(printf '%s' "${new_release}" | cut -d '.' -f 1,2)"
 

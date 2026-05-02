@@ -72,7 +72,7 @@ def main() -> int:
 
         dockerfile_path.write_text(content)
     except Exception as exc:
-        print(exc, file=sys.stderr)
+        print(f"Error updating Dockerfile: {exc}", file=sys.stderr)
         return 1
 
     return 0
