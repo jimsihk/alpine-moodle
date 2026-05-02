@@ -118,7 +118,7 @@ jobs:
               exit 1
             fi
 
-            if ! jq -e . >/dev/null "${response_file}"; then
+            if ! jq -e . "${response_file}" >/dev/null; then
               echo "::error::Repology returned invalid JSON for ${package_name}"
               exit 1
             fi

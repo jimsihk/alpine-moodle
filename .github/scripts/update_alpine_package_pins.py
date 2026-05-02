@@ -61,7 +61,7 @@ def main() -> int:
         for arg_name, package_name in PACKAGE_LINES.items():
             content = replace_or_fail(
                 content,
-                rf"^(# renovate: datasource=repology depName=)[^/\s]+/{package_name}( versioning=loose)$",
+                rf"^(# renovate: datasource=repology depName=)alpine_[0-9]+_[0-9]+/{package_name}( versioning=loose)$",
                 rf"\1{args.alpine_repo}/{package_name}\2",
             )
             content = replace_or_fail(
