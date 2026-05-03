@@ -121,6 +121,30 @@ jobs:
         run: |
           set -euo pipefail
 
+          extract_package_pins() {
+            python3 - <<'PY'
+import pathlib
+import re
+
+dockerfile = pathlib.Path("Dockerfile").read_text().splitlines()
+comment_pattern = re.compile(
+    r"^# renovate: datasource=repology depName=alpine_[0-9]+_[0-9]+/(?P<package_name>[^\s]+) versioning=loose$"
+)
+arg_pattern = re.compile(r'^ARG (?P<arg_name>[A-Z0-9_]+)="[^"]*"$')
+
+for index, line in enumerate(dockerfile):
+    comment_match = comment_pattern.match(line)
+    if comment_match is None or index + 1 >= len(dockerfile):
+        continue
+
+    arg_match = arg_pattern.match(dockerfile[index + 1])
+    if arg_match is None:
+        continue
+
+    print(f"{arg_match.group('arg_name')}={comment_match.group('package_name')}")
+PY
+          }
+
           resolve_package_version() {
             local package_name="$1"
             local response_file
@@ -155,22 +179,41 @@ jobs:
             printf '%s\n' "${resolved_version}"
           }
 
-          echo "dcron=$(resolve_package_version dcron)" >> "${GITHUB_OUTPUT}"
-          echo "libcap=$(resolve_package_version libcap)" >> "${GITHUB_OUTPUT}"
-          echo "git=$(resolve_package_version git)" >> "${GITHUB_OUTPUT}"
-          echo "bash=$(resolve_package_version bash)" >> "${GITHUB_OUTPUT}"
+          package_assignments_file="$(mktemp)"
+
+          while IFS='=' read -r arg_name package_name; do
+            [ -n "${arg_name}" ] || continue
+            printf '%s=%s\n' "${arg_name}" "$(resolve_package_version "${package_name}")" >> "${package_assignments_file}"
+          done < <(extract_package_pins)
+
+          if ! [ -s "${package_assignments_file}" ]; then
+            echo "::error::Could not determine Alpine package pins from Dockerfile"
+            exit 1
+          fi
+
+          {
+            echo "package_versions<<EOF"
+            cat "${package_assignments_file}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Update Dockerfile package pins
         if: steps.detect.outputs.ready == 'true'
+        env:
+          PACKAGE_VERSIONS: ${{ steps.versions.outputs.package_versions }}
         run: |
           set -euo pipefail
+          package_version_args=()
+
+          while IFS= read -r assignment; do
+            [ -n "${assignment}" ] || continue
+            package_version_args+=(--package-version "${assignment}")
+          done <<< "${PACKAGE_VERSIONS}"
+
           python3 .github/scripts/update_alpine_package_pins.py \
             --dockerfile Dockerfile \
             --alpine-repo "${{ steps.detect.outputs.new_repo }}" \
-            --package-version "DCRON_VERSION=${{ steps.versions.outputs.dcron }}" \
-            --package-version "LIBCAP_VERSION=${{ steps.versions.outputs.libcap }}" \
-            --package-version "GIT_VERSION=${{ steps.versions.outputs.git }}" \
-            --package-version "BASH_VERSION=${{ steps.versions.outputs.bash }}"
+            "${package_version_args[@]}"
 
       - name: Commit updated Alpine package pins
         if: steps.detect.outputs.ready == 'true'
