@@ -315,18 +315,11 @@ fi
 
 # Run Moodle system checks to verify the settings are properly set up
 # Moodle 5.2 router checks require this flag to be set when the web server routing is configured.
-ROUTER_CFG_LOG_FILE=$(mktemp)
-set +e
-php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/cfg.php --name=routerconfigured --set=1 > "${ROUTER_CFG_LOG_FILE}" 2>&1
-ROUTER_CFG_EXIT=$?
-set -e
-cat "${ROUTER_CFG_LOG_FILE}"
-if [ "${ROUTER_CFG_EXIT}" -ne 0 ] && ! grep -q '\$CFG->routerconfigured is set in config.php, unable to change' "${ROUTER_CFG_LOG_FILE}"; then
-  echo "Failed to set routerconfigured (exit code: ${ROUTER_CFG_EXIT})"
-  rm -f "${ROUTER_CFG_LOG_FILE}"
-  exit 1
+if grep -qE '^\$CFG->routerconfigured[[:space:]]*=' "${WEB_PATH}"/config.php; then
+  sed -i -E 's|^\$CFG->routerconfigured[[:space:]]*=.*|$CFG->routerconfigured = 1;|' "${WEB_PATH}"/config.php
+else
+  sed -i '/require_once/i $CFG->routerconfigured = 1;' "${WEB_PATH}"/config.php
 fi
-rm -f "${ROUTER_CFG_LOG_FILE}"
 
 CRON_CHECK_REF='tool_task_cronrunning'
 echo "Running Moodle system checks..."
