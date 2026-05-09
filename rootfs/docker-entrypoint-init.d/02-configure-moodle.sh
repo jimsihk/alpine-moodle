@@ -312,3 +312,14 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
 else
   echo "Skipped auto update of Moodle"
 fi
+
+# Run Moodle system checks to verify the settings are properly set up
+echo "Running Moodle system checks..."
+set +eo pipefail
+php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/checks.php
+CHECKS_EXIT=$?
+set -eo pipefail
+if [ "$CHECKS_EXIT" -ge 2 ]; then
+  echo "Moodle system checks reported critical errors (exit code: ${CHECKS_EXIT})"
+  exit 1
+fi
