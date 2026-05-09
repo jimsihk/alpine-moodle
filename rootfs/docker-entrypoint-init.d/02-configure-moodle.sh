@@ -317,6 +317,7 @@ fi
 # Moodle 5.2 router checks require this flag to be set when the web server routing is configured.
 php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/cfg.php --name=routerconfigured --set=1
 
+CRON_CHECK_REF='tool_task_cronrunning'
 echo "Running Moodle system checks..."
 CHECKS_LOG_FILE=$(mktemp)
 set +e
@@ -325,9 +326,9 @@ CHECKS_EXIT=$?
 set -e
 cat "${CHECKS_LOG_FILE}"
 if [ "$CHECKS_EXIT" -ge 2 ]; then
-  CHECK_REFS=$(sed -n 's/.*(\([a-z0-9_]*\)).*/\1/p' "${CHECKS_LOG_FILE}" | sort -u)
-  NON_CRON_REFS=$(echo "${CHECK_REFS}" | awk '$0 != "" && $0 != "tool_task_cronrunning"')
-  HAS_CRON_REF=$(echo "${CHECK_REFS}" | awk '$0 == "tool_task_cronrunning" { print "yes" }')
+  CHECK_REFS=$(sed -n 's/.*(\([A-Za-z0-9_]*\)).*/\1/p' "${CHECKS_LOG_FILE}" | sort -u)
+  NON_CRON_REFS=$(echo "${CHECK_REFS}" | awk -v cronref="${CRON_CHECK_REF}" '$0 != "" && $0 != cronref')
+  HAS_CRON_REF=$(echo "${CHECK_REFS}" | awk -v cronref="${CRON_CHECK_REF}" '$0 == cronref { print "yes" }')
 
   if [ -z "${NON_CRON_REFS}" ] && [ -n "${HAS_CRON_REF}" ]; then
     echo "Ignoring Moodle cron check failure during startup"
