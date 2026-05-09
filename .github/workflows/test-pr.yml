@@ -65,7 +65,7 @@ jobs:
             local CHECKS_OUTPUT CHECKS_EXIT NON_CRON_REFS HAS_CRON
             CHECKS_EXIT=0
             echo "Running Moodle system checks..."
-            CHECKS_OUTPUT=$(docker compose --file docker-compose.test.yml exec -T app php -d max_input_vars=10000 /var/www/html/admin/cli/checks.php 2>&1) || CHECKS_EXIT=$?
+            CHECKS_OUTPUT=$(docker compose --file docker-compose.test.yml exec -T app sh -c 'php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/checks.php' 2>&1) || CHECKS_EXIT=$?
             echo "${CHECKS_OUTPUT}"
             if [ "${CHECKS_EXIT}" -ge 2 ]; then
               NON_CRON_REFS=$(echo "${CHECKS_OUTPUT}" | sed -n 's/.*(\([A-Za-z0-9_-]*\)).*/\1/p' | sort -u | awk -v r="${CRON_CHECK_REF}" '$0!="" && $0!=r')
@@ -81,8 +81,6 @@ jobs:
 
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
-          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
-          export ARG_MOODLE_PLUGIN_LIST=report_benchmark
           docker compose --file docker-compose.test.yml up -d
           docker compose --file docker-compose.test.yml run --rm sut
           check_moodle_system
@@ -155,7 +153,7 @@ jobs:
             local CHECKS_OUTPUT CHECKS_EXIT NON_CRON_REFS HAS_CRON
             CHECKS_EXIT=0
             echo "Running Moodle system checks..."
-            CHECKS_OUTPUT=$(docker compose --file docker-compose.test.yml exec -T app php -d max_input_vars=10000 /var/www/html/admin/cli/checks.php 2>&1) || CHECKS_EXIT=$?
+            CHECKS_OUTPUT=$(docker compose --file docker-compose.test.yml exec -T app sh -c 'php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/checks.php' 2>&1) || CHECKS_EXIT=$?
             echo "${CHECKS_OUTPUT}"
             if [ "${CHECKS_EXIT}" -ge 2 ]; then
               NON_CRON_REFS=$(echo "${CHECKS_OUTPUT}" | sed -n 's/.*(\([A-Za-z0-9_-]*\)).*/\1/p' | sort -u | awk -v r="${CRON_CHECK_REF}" '$0!="" && $0!=r')
