@@ -337,7 +337,7 @@ CHECKS_EXIT=$?
 set -e
 cat "${CHECKS_LOG_FILE}"
 if [ "$CHECKS_EXIT" -ge 2 ]; then
-  CHECK_REFS=$(sed -n 's/.*(\([A-Za-z0-9_]*\)).*/\1/p' "${CHECKS_LOG_FILE}" | sort -u)
+  CHECK_REFS=$(sed -n 's/.*(\([A-Za-z0-9_-]*\)).*/\1/p' "${CHECKS_LOG_FILE}" | sort -u)
   NON_CRON_REFS=$(echo "${CHECK_REFS}" | awk -v cronref="${CRON_CHECK_REF}" '$0 != "" && $0 != cronref')
   HAS_CRON_REF=$(echo "${CHECK_REFS}" | awk -v cronref="${CRON_CHECK_REF}" '$0 == cronref { print "yes" }')
 
