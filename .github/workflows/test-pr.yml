@@ -60,22 +60,47 @@ jobs:
       - name: Build and Test
         if: matrix.test == 'standard'
         run: |
+          check_moodle_system() {
+            local CRON_CHECK_REF='tool_task_cronrunning'
+            local CHECKS_OUTPUT CHECKS_EXIT NON_CRON_REFS HAS_CRON
+            CHECKS_EXIT=0
+            echo "Running Moodle system checks..."
+            CHECKS_OUTPUT=$(docker compose --file docker-compose.test.yml exec -T app php -d max_input_vars=10000 /var/www/html/admin/cli/checks.php 2>&1) || CHECKS_EXIT=$?
+            echo "${CHECKS_OUTPUT}"
+            if [ "${CHECKS_EXIT}" -ge 2 ]; then
+              NON_CRON_REFS=$(echo "${CHECKS_OUTPUT}" | sed -n 's/.*(\([A-Za-z0-9_-]*\)).*/\1/p' | sort -u | awk -v r="${CRON_CHECK_REF}" '$0!="" && $0!=r')
+              HAS_CRON=$(echo "${CHECKS_OUTPUT}" | sed -n 's/.*(\([A-Za-z0-9_-]*\)).*/\1/p' | awk -v r="${CRON_CHECK_REF}" '$0==r{print "yes"}')
+              if [ -z "${NON_CRON_REFS}" ] && [ -n "${HAS_CRON}" ]; then
+                echo "Ignoring Moodle cron check failure in PR testing"
+              else
+                echo "Moodle system checks reported critical errors (exit code: ${CHECKS_EXIT})"
+                return 1
+              fi
+            fi
+          }
+
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
           export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           export ARG_MOODLE_PLUGIN_LIST=report_benchmark
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up -d
+          docker compose --file docker-compose.test.yml run --rm sut
+          check_moodle_system
           docker compose --file docker-compose.test.yml down --remove-orphans
 
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up -d
+          docker compose --file docker-compose.test.yml run --rm sut
+          docker compose --file docker-compose.test.yml down --remove-orphans
           export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up -d
+          docker compose --file docker-compose.test.yml run --rm sut
+          check_moodle_system
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
@@ -125,23 +150,48 @@ jobs:
       - name: Build and Test (Slim)
         if: matrix.test == 'slim'
         run: |
+          check_moodle_system() {
+            local CRON_CHECK_REF='tool_task_cronrunning'
+            local CHECKS_OUTPUT CHECKS_EXIT NON_CRON_REFS HAS_CRON
+            CHECKS_EXIT=0
+            echo "Running Moodle system checks..."
+            CHECKS_OUTPUT=$(docker compose --file docker-compose.test.yml exec -T app php -d max_input_vars=10000 /var/www/html/admin/cli/checks.php 2>&1) || CHECKS_EXIT=$?
+            echo "${CHECKS_OUTPUT}"
+            if [ "${CHECKS_EXIT}" -ge 2 ]; then
+              NON_CRON_REFS=$(echo "${CHECKS_OUTPUT}" | sed -n 's/.*(\([A-Za-z0-9_-]*\)).*/\1/p' | sort -u | awk -v r="${CRON_CHECK_REF}" '$0!="" && $0!=r')
+              HAS_CRON=$(echo "${CHECKS_OUTPUT}" | sed -n 's/.*(\([A-Za-z0-9_-]*\)).*/\1/p' | awk -v r="${CRON_CHECK_REF}" '$0==r{print "yes"}')
+              if [ -z "${NON_CRON_REFS}" ] && [ -n "${HAS_CRON}" ]; then
+                echo "Ignoring Moodle cron check failure in PR testing"
+              else
+                echo "Moodle system checks reported critical errors (exit code: ${CHECKS_EXIT})"
+                return 1
+              fi
+            fi
+          }
+
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
           export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}-slim"
           export ARG_MOODLE_PLUGIN_LIST=report_benchmark
           export ARG_ENABLE_GIT_CLONE=false
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up -d
+          docker compose --file docker-compose.test.yml run --rm sut
+          check_moodle_system
           docker compose --file docker-compose.test.yml down --remove-orphans
 
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest-slim
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up -d
+          docker compose --file docker-compose.test.yml run --rm sut
+          docker compose --file docker-compose.test.yml down --remove-orphans
           export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}-slim"
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up -d
+          docker compose --file docker-compose.test.yml run --rm sut
+          check_moodle_system
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
           unset ARG_ENABLE_GIT_CLONE

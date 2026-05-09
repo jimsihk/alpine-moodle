@@ -313,33 +313,9 @@ else
   echo "Skipped auto update of Moodle"
 fi
 
-# Run Moodle system checks to verify the settings are properly set up
 # Moodle 5.2 router checks require this flag to be set when the web server routing is configured.
 if grep -qE '^\$CFG->routerconfigured[[:space:]]*=' "${WEB_PATH}"/config.php; then
   sed -i -E 's|^\$CFG->routerconfigured[[:space:]]*=.*|$CFG->routerconfigured = 1;|' "${WEB_PATH}"/config.php
 else
   sed -i '/require_once/i $CFG->routerconfigured = 1;' "${WEB_PATH}"/config.php
 fi
-
-CRON_CHECK_REF='tool_task_cronrunning'
-echo "Running Moodle system checks..."
-CHECKS_LOG_FILE=$(mktemp)
-set +e
-php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/checks.php > "${CHECKS_LOG_FILE}" 2>&1
-CHECKS_EXIT=$?
-set -e
-cat "${CHECKS_LOG_FILE}"
-if [ "$CHECKS_EXIT" -ge 2 ]; then
-  CHECK_REFS=$(sed -n 's/.*(\([A-Za-z0-9_-]*\)).*/\1/p' "${CHECKS_LOG_FILE}" | sort -u)
-  NON_CRON_REFS=$(echo "${CHECK_REFS}" | awk -v cronref="${CRON_CHECK_REF}" '$0 != "" && $0 != cronref')
-  HAS_CRON_REF=$(echo "${CHECK_REFS}" | awk -v cronref="${CRON_CHECK_REF}" '$0 == cronref { print "yes" }')
-
-  if [ -z "${NON_CRON_REFS}" ] && [ -n "${HAS_CRON_REF}" ]; then
-    echo "Ignoring Moodle cron check failure during startup"
-  else
-    echo "Moodle system checks reported critical errors (exit code: ${CHECKS_EXIT})"
-    rm -f "${CHECKS_LOG_FILE}"
-    exit 1
-  fi
-fi
-rm -f "${CHECKS_LOG_FILE}"
