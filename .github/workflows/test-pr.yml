@@ -68,8 +68,7 @@ jobs:
           export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           export ARG_MOODLE_PLUGIN_LIST=report_benchmark
           docker compose --file docker-compose.test.yml up -d
-          # docker compose run returns the sut container exit code; non-zero fails the step
-          docker compose --file docker-compose.test.yml run --rm sut
+          wait_for_sut docker-compose.test.yml
           check_moodle_system docker-compose.test.yml
           docker compose --file docker-compose.test.yml down --remove-orphans
 
@@ -78,13 +77,13 @@ jobs:
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest
           docker compose --file docker-compose.test.yml up -d
-          docker compose --file docker-compose.test.yml run --rm sut
+          wait_for_sut docker-compose.test.yml
           docker compose --file docker-compose.test.yml down --remove-orphans
           export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
           docker compose --file docker-compose.test.yml up -d
-          docker compose --file docker-compose.test.yml run --rm sut
+          wait_for_sut docker-compose.test.yml
           check_moodle_system docker-compose.test.yml
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
@@ -144,8 +143,7 @@ jobs:
           export ARG_MOODLE_PLUGIN_LIST=report_benchmark
           export ARG_ENABLE_GIT_CLONE=false
           docker compose --file docker-compose.test.yml up -d
-          # docker compose run returns the sut container exit code; non-zero fails the step
-          docker compose --file docker-compose.test.yml run --rm sut
+          wait_for_sut docker-compose.test.yml
           check_moodle_system docker-compose.test.yml
           docker compose --file docker-compose.test.yml down --remove-orphans
 
@@ -154,13 +152,13 @@ jobs:
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest-slim
           docker compose --file docker-compose.test.yml up -d
-          docker compose --file docker-compose.test.yml run --rm sut
+          wait_for_sut docker-compose.test.yml
           docker compose --file docker-compose.test.yml down --remove-orphans
           export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}-slim"
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
           docker compose --file docker-compose.test.yml up -d
-          docker compose --file docker-compose.test.yml run --rm sut
+          wait_for_sut docker-compose.test.yml
           check_moodle_system docker-compose.test.yml
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE

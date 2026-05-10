@@ -1,7 +1,27 @@
 #!/usr/bin/env bash
 # Runs Moodle system checks via docker compose exec.
 # Exits non-zero if critical errors are found (cron-only failures are ignored).
-# Usage: source this file, then call check_moodle_system <compose-file>
+# Usage: source this file, then call wait_for_sut <compose-file>
+# and/or check_moodle_system <compose-file>
+
+wait_for_sut() {
+  local COMPOSE_FILE="${1:-docker-compose.test.yml}"
+  local SUT_EXIT=0
+  local LOGS_PID
+
+  docker compose --file "${COMPOSE_FILE}" logs --no-color -f sut &
+  LOGS_PID=$!
+
+  set +e
+  docker compose --file "${COMPOSE_FILE}" wait sut
+  SUT_EXIT=$?
+  set -e
+
+  kill "${LOGS_PID}" 2>/dev/null || true
+  wait "${LOGS_PID}" 2>/dev/null || true
+
+  return "${SUT_EXIT}"
+}
 
 check_moodle_system() {
   local COMPOSE_FILE="${1:-docker-compose.test.yml}"
