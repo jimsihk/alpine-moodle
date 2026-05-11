@@ -298,8 +298,16 @@ generate_router_shim_locations() {
           if (!$file->isFile() || $file->getExtension() !== "php") {
               continue;
           }
-          $contents = @file_get_contents($file->getPathname());
-          if ($contents === false || strpos($contents, "core\\router\\route") === false) {
+          if (!is_readable($file->getPathname())) {
+              fwrite(STDERR, "Skipping unreadable route file: {$file->getPathname()}\n");
+              continue;
+          }
+          $contents = file_get_contents($file->getPathname());
+          if ($contents === false) {
+              fwrite(STDERR, "Failed to read route file: {$file->getPathname()}\n");
+              continue;
+          }
+          if (strpos($contents, "core\\router\\route") === false) {
               continue;
           }
           if (!preg_match_all("/path:\\s*[\\x27\\x22]([^\\x27\\x22]+\\.php)[\\x27\\x22]/", $contents, $matches)) {
