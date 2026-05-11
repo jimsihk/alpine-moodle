@@ -320,8 +320,12 @@ ROUTER_CONFIG_FILE="${WEB_PATH}"/config.php
 if [ ! -f "${ROUTER_CONFIG_FILE}" ] && [ -f "${PUBLIC_WEB_PATH}"/config.php ]; then
   ROUTER_CONFIG_FILE="${PUBLIC_WEB_PATH}"/config.php
 fi
-if grep -qE '^\$CFG->routerconfigured[[:space:]]*=' "${ROUTER_CONFIG_FILE}"; then
+if [ ! -f "${ROUTER_CONFIG_FILE}" ]; then
+  echo "Skipped routerconfigured update: config.php not found"
+elif grep -qE '^\$CFG->routerconfigured[[:space:]]*=' "${ROUTER_CONFIG_FILE}"; then
   sed -i -E 's|^\$CFG->routerconfigured[[:space:]]*=.*|$CFG->routerconfigured = 1;|' "${ROUTER_CONFIG_FILE}"
-else
+elif grep -q 'require_once' "${ROUTER_CONFIG_FILE}"; then
   sed -i '/require_once/i $CFG->routerconfigured = 1;' "${ROUTER_CONFIG_FILE}"
+else
+  echo "Skipped routerconfigured update: require_once not found"
 fi

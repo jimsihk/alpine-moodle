@@ -32,7 +32,13 @@ check_moodle_system() {
   echo "Waiting ${CHECK_WAIT_SECONDS}s before running Moodle system checks to exercise cron checks..."
   sleep "${CHECK_WAIT_SECONDS}"
   echo "Running Moodle system checks..."
-  CHECKS_OUTPUT=$(docker compose --file "${COMPOSE_FILE}" exec -T app sh -c 'php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/checks.php' 2>&1) || CHECKS_EXIT=$?
+  CHECKS_OUTPUT=$(docker compose --file "${COMPOSE_FILE}" exec -T app sh -c '
+    CHECKS_FILE="${WEB_PATH}/admin/cli/checks.php"
+    if [ ! -f "${CHECKS_FILE}" ] && [ -n "${PUBLIC_WEB_PATH}" ] && [ -f "${PUBLIC_WEB_PATH}/admin/cli/checks.php" ]; then
+      CHECKS_FILE="${PUBLIC_WEB_PATH}/admin/cli/checks.php"
+    fi
+    php -d max_input_vars=10000 "${CHECKS_FILE}"
+  ' 2>&1) || CHECKS_EXIT=$?
   echo "${CHECKS_OUTPUT}"
   if [ "${CHECKS_EXIT}" -ge 2 ]; then
     NON_CRON_REFS=$(echo "${CHECKS_OUTPUT}" | sed -n 's/.*(\([A-Za-z0-9_-]*\)).*/\1/p' | sort -u | awk -v r="${CRON_CHECK_REF}" '$0!="" && $0!=r')
