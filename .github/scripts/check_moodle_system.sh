@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Runs Moodle system checks via docker compose exec.
 # Exits non-zero if critical errors are found (cron-only failures are ignored).
-# Usage: source this file, then call wait_for_sut <compose-file>
-# and/or check_moodle_system <compose-file>
+# Usage: source this file, then call wait_for_sut [compose-file]
+# and/or check_moodle_system [compose-file]
 # CHECK_MOODLE_SYSTEM_WAIT_SECONDS defaults to 120 so cron-related checks have
 # time to run before checks.php is evaluated in PR CI.
 

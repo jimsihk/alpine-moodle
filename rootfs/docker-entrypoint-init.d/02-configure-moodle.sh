@@ -313,7 +313,8 @@ else
   echo "Skipped auto update of Moodle"
 fi
 
-# Moodle 5.2 router checks require this flag to be set when the web server routing is configured.
+# Moodle 5.2 public path/router environment checks (for example publicpaths.php checks)
+# require this flag to be set when the web server routing is configured.
 # The base image already applies nginx_root_directory/custom_router from env; here we only ensure
 # Moodle config is aligned with that routing, using the public web path as a fallback if needed.
 ROUTER_CONFIG_PATTERN='^\$CFG->routerconfigured[[:space:]]*='
