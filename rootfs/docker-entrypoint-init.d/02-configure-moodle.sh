@@ -272,6 +272,63 @@ patch_publicpaths() {
 }
 patch_publicpaths
 
+generate_router_shim_locations() {
+  ROUTER_SHIM_CONF='/etc/nginx/conf.d/default/server/moodle-router-shims.conf'
+  ROUTER_SOURCE_ROOT="${PUBLIC_WEB_PATH}"
+  if [ ! -d "${ROUTER_SOURCE_ROOT}" ] && [ -d "${WEB_PATH}" ]; then
+    ROUTER_SOURCE_ROOT="${WEB_PATH}"
+  fi
+  if [ ! -d "${ROUTER_SOURCE_ROOT}" ]; then
+    echo "Skipped router shim location generation: source root not found"
+    rm -f "${ROUTER_SHIM_CONF}"
+    return 0
+  fi
+
+  TMP_ROUTER_SHIM_CONF=$(mktemp)
+  {
+    echo '# Generated from Moodle route attributes for shimmed legacy PHP paths.'
+    echo '# Requests matching these exact paths must execute r.php directly.'
+    php -r '
+      $root = $argv[1];
+      $iterator = new RecursiveIteratorIterator(
+          new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)
+      );
+      $paths = [];
+      foreach ($iterator as $file) {
+          if (!$file->isFile() || $file->getExtension() !== "php") {
+              continue;
+          }
+          $contents = @file_get_contents($file->getPathname());
+          if ($contents === false || strpos($contents, "core\\router\\route") === false) {
+              continue;
+          }
+          if (!preg_match_all("/path:\\s*[\\x27\\x22]([^\\x27\\x22]+\\.php)[\\x27\\x22]/", $contents, $matches)) {
+              continue;
+          }
+          foreach ($matches[1] as $path) {
+              if ($path !== "" && $path[0] === "/") {
+                  $paths[$path] = true;
+              }
+          }
+      }
+      ksort($paths);
+      foreach (array_keys($paths) as $path) {
+          echo "location = {$path} {\n";
+          echo "    rewrite ^ /r.php last;\n";
+          echo "}\n";
+      }
+    ' "${ROUTER_SOURCE_ROOT}"
+  } > "${TMP_ROUTER_SHIM_CONF}"
+
+  if grep -q '^location = ' "${TMP_ROUTER_SHIM_CONF}"; then
+    mv "${TMP_ROUTER_SHIM_CONF}" "${ROUTER_SHIM_CONF}"
+    echo "Generated router shim locations from ${ROUTER_SOURCE_ROOT}"
+  else
+    rm -f "${TMP_ROUTER_SHIM_CONF}" "${ROUTER_SHIM_CONF}"
+    echo "No router shim locations detected in ${ROUTER_SOURCE_ROOT}"
+  fi
+}
+
 # Update Moodle
 if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
   # Check current moodle maintenance status and keep in maintenance mode in case of manual enablement of it
@@ -312,6 +369,8 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
 else
   echo "Skipped auto update of Moodle"
 fi
+
+generate_router_shim_locations
 
 # Moodle 5.2 public path/router environment checks (for example publicpaths.php checks)
 # require this flag to be set when the web server routing is configured.
