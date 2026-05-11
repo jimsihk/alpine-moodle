@@ -43,6 +43,7 @@ check_moodle_system() {
   ' 2>&1) || CHECKS_EXIT=$?
   echo "${CHECKS_OUTPUT}"
   if [ "${CHECKS_EXIT}" -ge 2 ]; then
+    # Moodle check refs currently use alphanumeric, underscore, and hyphen tokens in parentheses.
     CHECK_REFS=$(echo "${CHECKS_OUTPUT}" | sed -n 's/.*(\([A-Za-z0-9_-]*\)).*/\1/p')
     NON_CRON_REFS=$(echo "${CHECK_REFS}" | sort -u | awk -v r="${CRON_CHECK_REF}" '$0!="" && $0!=r')
     HAS_CRON=$(echo "${CHECK_REFS}" | awk -v r="${CRON_CHECK_REF}" '$0==r{print "yes"}')

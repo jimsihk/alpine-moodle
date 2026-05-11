@@ -325,7 +325,7 @@ fi
 if [ ! -f "${ROUTER_CONFIG_FILE}" ]; then
   echo "Skipped routerconfigured update: config.php not found"
 elif grep -qE "${ROUTER_CONFIG_PATTERN}" "${ROUTER_CONFIG_FILE}"; then
-  sed -i -E "s|${ROUTER_CONFIG_PATTERN}.*|\$CFG->routerconfigured = 1;|" "${ROUTER_CONFIG_FILE}"
+  sed -i -E 's|^\$CFG->routerconfigured[[:space:]]*=.*|$CFG->routerconfigured = 1;|' "${ROUTER_CONFIG_FILE}"
 elif grep -q 'require_once' "${ROUTER_CONFIG_FILE}"; then
   sed -i '/require_once/i $CFG->routerconfigured = 1;' "${ROUTER_CONFIG_FILE}"
 else
