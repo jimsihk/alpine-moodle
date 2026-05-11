@@ -27,7 +27,10 @@ check_moodle_system() {
   local COMPOSE_FILE="${1:-docker-compose.test.yml}"
   local CRON_CHECK_REF='tool_task_cronrunning'
   local CHECKS_OUTPUT CHECKS_EXIT NON_CRON_REFS HAS_CRON
+  local CHECK_WAIT_SECONDS="${CHECK_MOODLE_SYSTEM_WAIT_SECONDS:-120}"
   CHECKS_EXIT=0
+  echo "Waiting ${CHECK_WAIT_SECONDS}s before running Moodle system checks to exercise cron checks..."
+  sleep "${CHECK_WAIT_SECONDS}"
   echo "Running Moodle system checks..."
   CHECKS_OUTPUT=$(docker compose --file "${COMPOSE_FILE}" exec -T app sh -c 'php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/checks.php' 2>&1) || CHECKS_EXIT=$?
   echo "${CHECKS_OUTPUT}"

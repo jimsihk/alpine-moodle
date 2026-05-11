@@ -314,8 +314,14 @@ else
 fi
 
 # Moodle 5.2 router checks require this flag to be set when the web server routing is configured.
-if grep -qE '^\$CFG->routerconfigured[[:space:]]*=' "${WEB_PATH}"/config.php; then
-  sed -i -E 's|^\$CFG->routerconfigured[[:space:]]*=.*|$CFG->routerconfigured = 1;|' "${WEB_PATH}"/config.php
+# The base image already applies nginx_root_directory/custom_router from env; here we only ensure
+# Moodle config is aligned with that routing, using the public web path as a fallback if needed.
+ROUTER_CONFIG_FILE="${WEB_PATH}"/config.php
+if [ ! -f "${ROUTER_CONFIG_FILE}" ] && [ -f "${PUBLIC_WEB_PATH}"/config.php ]; then
+  ROUTER_CONFIG_FILE="${PUBLIC_WEB_PATH}"/config.php
+fi
+if grep -qE '^\$CFG->routerconfigured[[:space:]]*=' "${ROUTER_CONFIG_FILE}"; then
+  sed -i -E 's|^\$CFG->routerconfigured[[:space:]]*=.*|$CFG->routerconfigured = 1;|' "${ROUTER_CONFIG_FILE}"
 else
-  sed -i '/require_once/i $CFG->routerconfigured = 1;' "${WEB_PATH}"/config.php
+  sed -i '/require_once/i $CFG->routerconfigured = 1;' "${ROUTER_CONFIG_FILE}"
 fi
