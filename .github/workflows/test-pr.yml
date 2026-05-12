@@ -148,7 +148,7 @@ jobs:
         run: |
           echo '###############################'
           echo "Test - Moodle update by Git with volume..."
-          export LOCAL_PATH='./tmpdata'"${{ matrix.test }}"
+          export LOCAL_PATH='./tmpdata/'"${{ matrix.test }}"
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
           docker pull ${{ github.repository }}:latest
