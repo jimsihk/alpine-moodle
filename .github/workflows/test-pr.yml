@@ -52,30 +52,79 @@ jobs:
         uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        if: matrix.test == 'multi'
         uses: docker/setup-buildx-action@v4
         with:
           driver-opts: network=host
+
+      - name: Prepare build variables for non-multi tests
+        if: matrix.test != 'multi'
+        id: non-multi-build-vars
+        run: |
+          case "${{ matrix.test }}" in
+            standard)
+              echo "image_name=${{ needs.prepare.outputs.tag }}-standard" >> "$GITHUB_OUTPUT"
+              echo "cache_scope=test-pr-standard" >> "$GITHUB_OUTPUT"
+              {
+                echo "build_args<<EOF"
+                echo "ARG_MOODLE_PLUGIN_LIST=report_benchmark"
+                echo "ARG_ALLOW_INCOMPATIBLE_PLUGIN=true"
+                echo "ARG_ENABLE_GIT_CLONE=true"
+                echo "EOF"
+              } >> "$GITHUB_OUTPUT"
+              ;;
+            slim)
+              echo "image_name=${{ needs.prepare.outputs.tag }}-slim" >> "$GITHUB_OUTPUT"
+              echo "cache_scope=test-pr-slim" >> "$GITHUB_OUTPUT"
+              {
+                echo "build_args<<EOF"
+                echo "ARG_MOODLE_PLUGIN_LIST=report_benchmark"
+                echo "ARG_ALLOW_INCOMPATIBLE_PLUGIN=true"
+                echo "ARG_ENABLE_GIT_CLONE=false"
+                echo "EOF"
+              } >> "$GITHUB_OUTPUT"
+              ;;
+            volume1|volume2)
+              echo "image_name=${{ needs.prepare.outputs.tag }}-volume" >> "$GITHUB_OUTPUT"
+              echo "cache_scope=test-pr-volume" >> "$GITHUB_OUTPUT"
+              {
+                echo "build_args<<EOF"
+                echo "ARG_MOODLE_GIT_BRANCH=$(grep '^ARG\\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d \"'\")"
+                echo "ARG_MOODLE_GIT_COMMIT=$(grep '^ARG\\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d \"'\")"
+                echo "EOF"
+              } >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+      - name: Build non-multi test image
+        if: matrix.test != 'multi'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: ${{ steps.non-multi-build-vars.outputs.image_name }}
+          build-args: ${{ steps.non-multi-build-vars.outputs.build_args }}
+          cache-from: type=gha,scope=${{ steps.non-multi-build-vars.outputs.cache_scope }}
+          cache-to: type=gha,mode=max,scope=${{ steps.non-multi-build-vars.outputs.cache_scope }}
+          provenance: false
 
       - name: Build and Test
         if: matrix.test == 'standard'
         run: |
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
-          export ARG_MOODLE_PLUGIN_LIST=report_benchmark
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          export TEST_IMAGE_NAME=${{ steps.non-multi-build-vars.outputs.image_name }}
+          docker compose --file docker-compose.test.yml up --no-build --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
 
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
+          docker compose --file docker-compose.test.yml up --no-build --exit-code-from sut -t 10
+          export TEST_IMAGE_NAME=${{ steps.non-multi-build-vars.outputs.image_name }}
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up --no-build --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
@@ -87,10 +136,8 @@ jobs:
           export LOCAL_PATH='./tmpdata/'"${{ matrix.test }}"
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
-          export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
-          export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
-          docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
+          export TEST_IMAGE_NAME=${{ steps.non-multi-build-vars.outputs.image_name }}
+          docker compose --file docker-compose.test.volume.yml up --no-build --exit-code-from sut -t 10
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
           echo "${LOCAL_PATH}"
           ls -l "${LOCAL_PATH}"
@@ -107,16 +154,14 @@ jobs:
           #export ARG_MOODLE_GIT_BRANCH='MOODLE_405_STABLE'
           #export ARG_MOODLE_GIT_COMMIT='a57387fe2d8faa2e6fa36246f4dc59825c307e7f'
           #export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
-          docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.volume.yml up --no-build --exit-code-from sut -t 10
           echo "${LOCAL_PATH}"
           ls -l "${LOCAL_PATH}"
 
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
-          export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
-          export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
-          docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
+          export TEST_IMAGE_NAME=${{ steps.non-multi-build-vars.outputs.image_name }}
+          docker compose --file docker-compose.test.volume.yml up --no-build --exit-code-from sut -t 10
 
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
@@ -127,24 +172,21 @@ jobs:
         run: |
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-slim
-          export ARG_MOODLE_PLUGIN_LIST=report_benchmark
-          export ARG_ENABLE_GIT_CLONE=false
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          export TEST_IMAGE_NAME=${{ steps.non-multi-build-vars.outputs.image_name }}
+          docker compose --file docker-compose.test.yml up --no-build --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
 
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
           export TEST_IMAGE_NAME=${{ github.repository }}:latest-slim
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-slim
+          docker compose --file docker-compose.test.yml up --no-build --exit-code-from sut -t 10
+          export TEST_IMAGE_NAME=${{ steps.non-multi-build-vars.outputs.image_name }}
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up --no-build --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
-          unset ARG_ENABLE_GIT_CLONE
 
       - name: Test build multi-arch
         if: matrix.test == 'multi'
@@ -154,6 +196,8 @@ jobs:
           push: true # to local registry
           tags: ${{ needs.prepare.outputs.tag }}
           platforms: ${{ vars.CONTAINER_ARCH }}
+          cache-from: type=gha,scope=test-pr-multi
+          cache-to: type=gha,mode=max,scope=test-pr-multi
           provenance: false
 
       - name: Run Trivy vulnerability scanner for PR
