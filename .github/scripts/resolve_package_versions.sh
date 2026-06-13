@@ -12,6 +12,23 @@ REPOLOGY_FETCH_MAX_RETRY_DELAY_SECONDS="${REPOLOGY_FETCH_MAX_RETRY_DELAY_SECONDS
 REPOLOGY_CONNECT_TIMEOUT_SECONDS="${REPOLOGY_CONNECT_TIMEOUT_SECONDS:-15}"
 REPOLOGY_MAX_TIME_SECONDS="${REPOLOGY_MAX_TIME_SECONDS:-45}"
 
+for var in \
+  REPOLOGY_MAX_ATTEMPTS \
+  REPOLOGY_INITIAL_RETRY_DELAY_SECONDS \
+  REPOLOGY_FETCH_MAX_RETRY_DELAY_SECONDS \
+  REPOLOGY_CONNECT_TIMEOUT_SECONDS \
+  REPOLOGY_MAX_TIME_SECONDS; do
+  if ! [[ "${!var}" =~ ^[0-9]+$ ]]; then
+    echo "::error::${var} must be a non-negative integer (got '${!var}')" >&2
+    exit 1
+  fi
+done
+
+if [ "${REPOLOGY_MAX_ATTEMPTS}" -lt 1 ]; then
+  echo "::error::REPOLOGY_MAX_ATTEMPTS must be >= 1 (got '${REPOLOGY_MAX_ATTEMPTS}')" >&2
+  exit 1
+fi
+
 fetch_repology_data() {
   local package_name="$1"
   local response_file="$2"
