@@ -65,6 +65,7 @@ resolve_package_version() {
   local response_file
   local resolved_version
   response_file="$(mktemp)"
+  trap "rm -f '${response_file}'" RETURN
 
   if ! fetch_repology_data "${package_name}" "${response_file}"; then
     return 1
@@ -104,6 +105,7 @@ resolve_package_version() {
 }
 
 package_assignments_file="$(mktemp)"
+trap 'rm -f "${package_assignments_file}"' EXIT
 
 while IFS='=' read -r arg_name package_name; do
   [ -n "${arg_name}" ] || continue
