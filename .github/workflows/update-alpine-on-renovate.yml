@@ -6,6 +6,8 @@ on:
     branches: ["dev"]
     paths:
       - Dockerfile
+      - .github/workflows/update-alpine-on-renovate.yml
+      - .github/scripts/**
 
 permissions:
   contents: write
