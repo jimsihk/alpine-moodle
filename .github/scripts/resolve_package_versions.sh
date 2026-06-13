@@ -7,7 +7,7 @@ set -euo pipefail
 REPOLOGY_API_BASE="${REPOLOGY_API_BASE:-https://repology.org/api/v1/project}"
 # Maximum number of fetch attempts including the initial call.
 REPOLOGY_MAX_ATTEMPTS="${REPOLOGY_MAX_ATTEMPTS:-4}"
-REPOLOGY_FETCH_RETRY_DELAY_SECONDS="${REPOLOGY_FETCH_RETRY_DELAY_SECONDS:-2}"
+REPOLOGY_INITIAL_RETRY_DELAY_SECONDS="${REPOLOGY_INITIAL_RETRY_DELAY_SECONDS:-2}"
 REPOLOGY_FETCH_MAX_RETRY_DELAY_SECONDS="${REPOLOGY_FETCH_MAX_RETRY_DELAY_SECONDS:-30}"
 REPOLOGY_CONNECT_TIMEOUT_SECONDS="${REPOLOGY_CONNECT_TIMEOUT_SECONDS:-15}"
 REPOLOGY_MAX_TIME_SECONDS="${REPOLOGY_MAX_TIME_SECONDS:-45}"
@@ -16,7 +16,7 @@ fetch_repology_data() {
   local package_name="$1"
   local response_file="$2"
   local attempt=1
-  local retry_delay="${REPOLOGY_FETCH_RETRY_DELAY_SECONDS}"
+  local retry_delay="${REPOLOGY_INITIAL_RETRY_DELAY_SECONDS}"
 
   while [ "${attempt}" -le "${REPOLOGY_MAX_ATTEMPTS}" ]; do
     if curl -fsSL \
@@ -61,8 +61,8 @@ resolve_package_version() {
   # Repology API responses can be either an array of package rows or an object keyed by repo.
   # Validate that the requested Alpine repo has a non-empty version in either structure.
   if ! jq -e --arg repo "${ALPINE_REPO}" '
-    (type == "array" and any(.[]; .repo? == $repo and (.version? // "") != "")) or
-    (type == "object" and ((.[$repo].version? // "") != ""))
+    (type == "array" and any(.[]; .repo? == $repo and (.version // "") != "")) or
+    (type == "object" and ((.[$repo].version // "") != ""))
   ' "${response_file}" >/dev/null; then
     echo "::error::Repology payload does not include a usable ${ALPINE_REPO} version for ${package_name}" >&2
     return 1
