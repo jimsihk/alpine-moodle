@@ -65,7 +65,7 @@ resolve_package_version() {
   local response_file
   local resolved_version
   response_file="$(mktemp)"
-  trap "rm -f '${response_file}'" RETURN
+  trap 'rm -f "${response_file}"' RETURN
 
   if ! fetch_repology_data "${package_name}" "${response_file}"; then
     return 1
