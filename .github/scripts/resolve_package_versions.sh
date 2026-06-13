@@ -5,7 +5,8 @@
 set -euo pipefail
 
 REPOLOGY_API_BASE="${REPOLOGY_API_BASE:-https://repology.org/api/v1/project}"
-REPOLOGY_FETCH_RETRIES="${REPOLOGY_FETCH_RETRIES:-4}"
+# Maximum number of fetch attempts including the initial call.
+REPOLOGY_MAX_ATTEMPTS="${REPOLOGY_MAX_ATTEMPTS:-4}"
 REPOLOGY_FETCH_RETRY_DELAY_SECONDS="${REPOLOGY_FETCH_RETRY_DELAY_SECONDS:-2}"
 REPOLOGY_CONNECT_TIMEOUT_SECONDS="${REPOLOGY_CONNECT_TIMEOUT_SECONDS:-15}"
 REPOLOGY_MAX_TIME_SECONDS="${REPOLOGY_MAX_TIME_SECONDS:-45}"
@@ -15,7 +16,7 @@ fetch_repology_data() {
   local response_file="$2"
   local attempt=1
 
-  while [ "${attempt}" -le "${REPOLOGY_FETCH_RETRIES}" ]; do
+  while [ "${attempt}" -le "${REPOLOGY_MAX_ATTEMPTS}" ]; do
     if curl -fsSL \
       --connect-timeout "${REPOLOGY_CONNECT_TIMEOUT_SECONDS}" \
       --max-time "${REPOLOGY_MAX_TIME_SECONDS}" \
@@ -24,15 +25,15 @@ fetch_repology_data() {
       return 0
     fi
 
-    if [ "${attempt}" -lt "${REPOLOGY_FETCH_RETRIES}" ]; then
-      echo "::warning::Repology fetch failed for ${package_name} (attempt ${attempt}/${REPOLOGY_FETCH_RETRIES}); retrying in ${REPOLOGY_FETCH_RETRY_DELAY_SECONDS}s" >&2
+    if [ "${attempt}" -lt "${REPOLOGY_MAX_ATTEMPTS}" ]; then
+      echo "::warning::Repology fetch failed for ${package_name} (attempt ${attempt}/${REPOLOGY_MAX_ATTEMPTS}); retrying in ${REPOLOGY_FETCH_RETRY_DELAY_SECONDS}s" >&2
       sleep "${REPOLOGY_FETCH_RETRY_DELAY_SECONDS}"
     fi
 
     attempt="$((attempt + 1))"
   done
 
-  echo "::error::Failed to fetch Repology data for ${package_name} after ${REPOLOGY_FETCH_RETRIES} attempts" >&2
+  echo "::error::Failed to fetch Repology data for ${package_name} after ${REPOLOGY_MAX_ATTEMPTS} attempts" >&2
   return 1
 }
 
@@ -51,8 +52,11 @@ resolve_package_version() {
     return 1
   fi
 
-  if ! jq -e 'type == "array" or type == "object"' "${response_file}" >/dev/null; then
-    echo "::error::Repology returned unsupported JSON structure for ${package_name}" >&2
+  if ! jq -e --arg repo "${ALPINE_REPO}" '
+    (type == "array" and any(.[]; .repo? == $repo and (.version? // "") != "")) or
+    (type == "object" and ((.[$repo].version? // "") != ""))
+  ' "${response_file}" >/dev/null; then
+    echo "::error::Repology payload does not include a usable ${ALPINE_REPO} version for ${package_name}" >&2
     return 1
   fi
 
