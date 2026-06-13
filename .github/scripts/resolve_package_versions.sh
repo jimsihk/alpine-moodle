@@ -8,6 +8,7 @@ REPOLOGY_API_BASE="${REPOLOGY_API_BASE:-https://repology.org/api/v1/project}"
 # Maximum number of fetch attempts including the initial call.
 REPOLOGY_MAX_ATTEMPTS="${REPOLOGY_MAX_ATTEMPTS:-4}"
 REPOLOGY_FETCH_RETRY_DELAY_SECONDS="${REPOLOGY_FETCH_RETRY_DELAY_SECONDS:-2}"
+REPOLOGY_FETCH_MAX_RETRY_DELAY_SECONDS="${REPOLOGY_FETCH_MAX_RETRY_DELAY_SECONDS:-30}"
 REPOLOGY_CONNECT_TIMEOUT_SECONDS="${REPOLOGY_CONNECT_TIMEOUT_SECONDS:-15}"
 REPOLOGY_MAX_TIME_SECONDS="${REPOLOGY_MAX_TIME_SECONDS:-45}"
 
@@ -15,6 +16,7 @@ fetch_repology_data() {
   local package_name="$1"
   local response_file="$2"
   local attempt=1
+  local retry_delay="${REPOLOGY_FETCH_RETRY_DELAY_SECONDS}"
 
   while [ "${attempt}" -le "${REPOLOGY_MAX_ATTEMPTS}" ]; do
     if curl -fsSL \
@@ -26,8 +28,12 @@ fetch_repology_data() {
     fi
 
     if [ "${attempt}" -lt "${REPOLOGY_MAX_ATTEMPTS}" ]; then
-      echo "::warning::Repology fetch failed for ${package_name} (attempt ${attempt}/${REPOLOGY_MAX_ATTEMPTS}); retrying in ${REPOLOGY_FETCH_RETRY_DELAY_SECONDS}s" >&2
-      sleep "${REPOLOGY_FETCH_RETRY_DELAY_SECONDS}"
+      echo "::warning::Repology fetch failed for ${package_name} (attempt ${attempt}/${REPOLOGY_MAX_ATTEMPTS}); retrying in ${retry_delay}s" >&2
+      sleep "${retry_delay}"
+      retry_delay="$((retry_delay * 2))"
+      if [ "${retry_delay}" -gt "${REPOLOGY_FETCH_MAX_RETRY_DELAY_SECONDS}" ]; then
+        retry_delay="${REPOLOGY_FETCH_MAX_RETRY_DELAY_SECONDS}"
+      fi
     fi
 
     attempt="$((attempt + 1))"
@@ -52,6 +58,8 @@ resolve_package_version() {
     return 1
   fi
 
+  # Repology API responses can be either an array of package rows or an object keyed by repo.
+  # Validate that the requested Alpine repo has a non-empty version in either structure.
   if ! jq -e --arg repo "${ALPINE_REPO}" '
     (type == "array" and any(.[]; .repo? == $repo and (.version? // "") != "")) or
     (type == "object" and ((.[$repo].version? // "") != ""))
