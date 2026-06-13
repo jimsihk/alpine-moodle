@@ -11,13 +11,13 @@ resolve_package_version() {
   response_file="$(mktemp)"
 
   if ! curl -fsSL "https://repology.org/api/v1/project/${package_name}" -o "${response_file}"; then
-    echo "::error::Failed to fetch Repology data for ${package_name}"
-    exit 1
+    echo "::error::Failed to fetch Repology data for ${package_name}" >&2
+    return 1
   fi
 
   if ! jq -e . "${response_file}" >/dev/null; then
-    echo "::error::Repology returned invalid JSON for ${package_name}"
-    exit 1
+    echo "::error::Repology returned invalid JSON for ${package_name}" >&2
+    return 1
   fi
 
   resolved_version="$(
@@ -31,8 +31,8 @@ resolve_package_version() {
   )"
 
   if [ -z "${resolved_version}" ] || [ "${resolved_version}" = "null" ]; then
-    echo "::error::Could not resolve ${package_name} for ${ALPINE_REPO}"
-    exit 1
+    echo "::error::Could not resolve ${package_name} for ${ALPINE_REPO}" >&2
+    return 1
   fi
 
   printf '%s\n' "${resolved_version}"
@@ -42,7 +42,8 @@ package_assignments_file="$(mktemp)"
 
 while IFS='=' read -r arg_name package_name; do
   [ -n "${arg_name}" ] || continue
-  printf '%s=%s\n' "${arg_name}" "$(resolve_package_version "${package_name}")" >> "${package_assignments_file}"
+  resolved_version="$(resolve_package_version "${package_name}")" || exit 1
+  printf '%s=%s\n' "${arg_name}" "${resolved_version}" >> "${package_assignments_file}"
 done < <(python3 .github/scripts/extract_package_pins.py)
 
 if ! [ -s "${package_assignments_file}" ]; then
