@@ -81,12 +81,14 @@ jobs:
       - name: Commit updated Alpine package pins
         if: steps.detect.outputs.ready == 'true' && steps.changes.outputs.changed == 'true'
         env:
-          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           NEW_SERIES: ${{ steps.detect.outputs.new_series }}
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           add-paths: Dockerfile
           commit-message: "Adjust Alpine package pins for ${{ env.NEW_SERIES }}"
-          branch: ${{ env.PR_HEAD_REF }}
+          branch: "automation/alpine-pins-pr-${{ github.event.pull_request.number }}"
+          base: ${{ github.event.pull_request.base.ref }}
+          title: "Adjust Alpine package pins for ${{ env.NEW_SERIES }}"
+          body: "Automated update of Dockerfile Alpine package pins for #${{ github.event.pull_request.number }}."
           sign-commits: true
