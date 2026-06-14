@@ -89,7 +89,4 @@ jobs:
           add-paths: Dockerfile
           commit-message: "Adjust Alpine package pins for ${{ env.NEW_SERIES }}"
           branch: ${{ env.PR_HEAD_REF }}
-          base: ${{ github.event.pull_request.base.ref }}
-          title: "Adjust Alpine package pins for ${{ env.NEW_SERIES }}"
-          body: "Automated update of Dockerfile Alpine package pins."
           sign-commits: true
