@@ -5,6 +5,7 @@
 set -euo pipefail
 
 REPOLOGY_API_BASE="${REPOLOGY_API_BASE:-https://repology.org/api/v1/project}"
+REPOLOGY_USER_AGENT="${REPOLOGY_USER_AGENT:-Mozilla/5.0 (compatible; alpine-moodle-ci/1.0; +https://github.com/jimsihk/alpine-moodle)}"
 # Maximum number of fetch attempts including the initial call.
 REPOLOGY_MAX_ATTEMPTS="${REPOLOGY_MAX_ATTEMPTS:-4}"
 REPOLOGY_INITIAL_RETRY_DELAY_SECONDS="${REPOLOGY_INITIAL_RETRY_DELAY_SECONDS:-2}"
@@ -39,6 +40,7 @@ fetch_repology_data() {
     if curl -fsSL \
       --connect-timeout "${REPOLOGY_CONNECT_TIMEOUT_SECONDS}" \
       --max-time "${REPOLOGY_MAX_TIME_SECONDS}" \
+      --user-agent "${REPOLOGY_USER_AGENT}" \
       "${REPOLOGY_API_BASE}/${package_name}" \
       -o "${response_file}"; then
       return 0
