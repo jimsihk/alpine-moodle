@@ -79,10 +79,13 @@ resolve_package_version() {
   fi
 
   # Repology API responses can be either an array of package rows or an object keyed by repo.
-  # Validate that the requested Alpine repo has a non-empty version in either structure.
+  # Use origversion (the unmodified Alpine APK version string) rather than version (Repology's
+  # normalized upstream version), because Repology normalises patch numbers differently from APK.
+  # For example, bash patch 9 is stored as origversion=5.3.9-r1 but version=5.3.p9, and APK
+  # only accepts the former format.
   if ! jq -e --arg repo "${ALPINE_REPO}" '
-    (type == "array" and any(.[]; .repo? == $repo and (.version // "") != "")) or
-    (type == "object" and ((.[$repo].version // "") != ""))
+    (type == "array" and any(.[]; .repo? == $repo and (.origversion // "") != "")) or
+    (type == "object" and ((.[$repo].origversion // "") != ""))
   ' "${response_file}" >/dev/null; then
     echo "::error::Repology payload does not include a usable ${ALPINE_REPO} version for ${package_name}" >&2
     return 1
@@ -91,9 +94,9 @@ resolve_package_version() {
   resolved_version="$(
     jq -r --arg repo "${ALPINE_REPO}" '
       if type == "array" then
-        map(select(.repo == $repo))[0].version // empty
+        map(select(.repo == $repo))[0].origversion // empty
       else
-        .[$repo].version // empty
+        .[$repo].origversion // empty
       end
     ' "${response_file}"
   )"
