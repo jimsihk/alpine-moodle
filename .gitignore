@@ -3,3 +3,5 @@
 .data
 .DS_Store
 *.iml
+__pycache__/
+*.pyc

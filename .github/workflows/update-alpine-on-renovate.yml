@@ -1,0 +1,81 @@
+name: Update Alpine package pins for Renovate PRs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: ["dev"]
+    paths:
+      - Dockerfile
+      - .github/workflows/update-alpine-on-renovate.yml
+      - .github/scripts/**
+
+permissions:
+  contents: write
+
+jobs:
+  sync-alpine-package-pins:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout Renovate PR branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Detect Alpine major/minor transition
+        id: detect
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: bash .github/scripts/detect_alpine_transition.sh
+
+      - name: Resolve package versions for new Alpine series
+        id: versions
+        if: steps.detect.outputs.ready == 'true'
+        env:
+          ALPINE_REPO: ${{ steps.detect.outputs.new_repo }}
+        run: bash .github/scripts/resolve_package_versions.sh
+
+      - name: Update Dockerfile package pins
+        if: steps.detect.outputs.ready == 'true'
+        env:
+          PACKAGE_VERSIONS: ${{ steps.versions.outputs.package_versions }}
+        run: |
+          set -euo pipefail
+          package_version_args=()
+
+          while IFS= read -r assignment; do
+            [ -n "${assignment}" ] || continue
+            package_version_args+=(--package-version "${assignment}")
+          done <<< "${PACKAGE_VERSIONS}"
+
+          python3 .github/scripts/update_alpine_package_pins.py \
+            --dockerfile Dockerfile \
+            --alpine-repo "${{ steps.detect.outputs.new_repo }}" \
+            "${package_version_args[@]}"
+
+      - name: Commit updated Alpine package pins
+        if: steps.detect.outputs.ready == 'true'
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          NEW_SERIES: ${{ steps.detect.outputs.new_series }}
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- Dockerfile; then
+            echo "Dockerfile already matches Alpine ${NEW_SERIES}"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Dockerfile
+          git commit -m "Adjust Alpine package pins for ${NEW_SERIES}"
+          git push origin "HEAD:${PR_HEAD_REF}"
