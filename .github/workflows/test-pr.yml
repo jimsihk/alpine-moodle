@@ -60,22 +60,31 @@ jobs:
       - name: Build and Test
         if: matrix.test == 'standard'
         run: |
+          # shellcheck source=.github/scripts/check_moodle_system.sh
+          . .github/scripts/check_moodle_system.sh
+
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           export ARG_MOODLE_PLUGIN_LIST=report_benchmark
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up -d
+          wait_for_sut docker-compose.test.yml
+          check_moodle_system docker-compose.test.yml
           docker compose --file docker-compose.test.yml down --remove-orphans
 
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
-          export TEST_IMAGE_NAME=${{ github.repository }}:latest
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
+          export TEST_IMAGE_NAME="${{ github.repository }}:latest"
+          docker compose --file docker-compose.test.yml up -d
+          wait_for_sut docker-compose.test.yml
+          docker compose --file docker-compose.test.yml down --remove-orphans
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up -d
+          wait_for_sut docker-compose.test.yml
+          check_moodle_system docker-compose.test.yml
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
@@ -89,7 +98,7 @@ jobs:
           chmod -R 777 "${LOCAL_PATH}"
           export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
           export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
           echo "${LOCAL_PATH}"
@@ -115,7 +124,7 @@ jobs:
           export UPDATE_MOODLE_CODE=true
           export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
           export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}"
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
 
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
@@ -125,23 +134,32 @@ jobs:
       - name: Build and Test (Slim)
         if: matrix.test == 'slim'
         run: |
+          # shellcheck source=.github/scripts/check_moodle_system.sh
+          . .github/scripts/check_moodle_system.sh
+
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-slim
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}-slim"
           export ARG_MOODLE_PLUGIN_LIST=report_benchmark
           export ARG_ENABLE_GIT_CLONE=false
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up -d
+          wait_for_sut docker-compose.test.yml
+          check_moodle_system docker-compose.test.yml
           docker compose --file docker-compose.test.yml down --remove-orphans
 
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
-          export TEST_IMAGE_NAME=${{ github.repository }}:latest-slim
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-slim
+          export TEST_IMAGE_NAME="${{ github.repository }}:latest-slim"
+          docker compose --file docker-compose.test.yml up -d
+          wait_for_sut docker-compose.test.yml
+          docker compose --file docker-compose.test.yml down --remove-orphans
+          export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}-slim"
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+          docker compose --file docker-compose.test.yml up -d
+          wait_for_sut docker-compose.test.yml
+          check_moodle_system docker-compose.test.yml
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
           unset ARG_ENABLE_GIT_CLONE

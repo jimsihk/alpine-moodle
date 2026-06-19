@@ -60,7 +60,7 @@ jobs:
       - name: Get container Moodle version
         id: moodle_version
         run: |
-          docker run -i -e SKIP_MOODLE_CONFIG='true' ${{ inputs.image }} cat /var/www/html/version.php > version.txt
+          docker run -i -e SKIP_MOODLE_CONFIG='true' ${{ inputs.image }} cat /var/www/html/public/version.php > version.txt
           MOODLE_VERSION=$(grep "\$version" version.txt | sed 's/ //g' | cut -d';' -f1 | cut -d '=' -f2)
           MOODLE_RELEASE=$(grep "\$release" version.txt | sed 's/ //g' | cut -d';' -f1 | cut -d '=' -f2 | sed "s/'//g")
           MOODLE_BRANCH=$(grep "\$branch" version.txt | sed 's/ //g' | cut -d';' -f1 | cut -d '=' -f2 | sed "s/'//g")

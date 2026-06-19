@@ -254,6 +254,13 @@ chmod 440 "${WEB_PATH}"/config.php
 # Fix publicpaths check (deprecated, keep for upgrade capability)
 patch_publicpaths() {
   PUBLICPATHS_FILE="${WEB_PATH}"/lib/classes/check/environment/publicpaths.php
+  if [ ! -f "${PUBLICPATHS_FILE}" ] && [ -f "${PUBLIC_WEB_PATH}"/lib/classes/check/environment/publicpaths.php ]; then
+    PUBLICPATHS_FILE="${PUBLIC_WEB_PATH}"/lib/classes/check/environment/publicpaths.php
+  fi
+  if [ ! -f "${PUBLICPATHS_FILE}" ]; then
+    echo "Skipped publicpaths.php patch"
+    return 0
+  fi
   set +eo pipefail
   grep "wwwroot\ \. \"\:8080\"" "$PUBLICPATHS_FILE" > /dev/null
   GREPRESULT=$?
@@ -264,6 +271,71 @@ patch_publicpaths() {
   fi
 }
 patch_publicpaths
+
+generate_router_shim_locations() {
+  ROUTER_SHIM_CONF='/etc/nginx/conf.d/default/server/moodle-router-shims.conf'
+  ROUTER_SOURCE_ROOT="${PUBLIC_WEB_PATH}"
+  if [ ! -d "${ROUTER_SOURCE_ROOT}" ] && [ -d "${WEB_PATH}" ]; then
+    ROUTER_SOURCE_ROOT="${WEB_PATH}"
+  fi
+  if [ ! -d "${ROUTER_SOURCE_ROOT}" ]; then
+    echo "Skipped router shim location generation: source root not found"
+    rm -f "${ROUTER_SHIM_CONF}"
+    return 0
+  fi
+
+  TMP_ROUTER_SHIM_CONF=$(mktemp)
+  {
+    echo '# Generated from Moodle route attributes for shimmed legacy PHP paths.'
+    echo '# Requests matching these exact paths must execute r.php directly.'
+    php -r '
+      $root = $argv[1];
+      $iterator = new RecursiveIteratorIterator(
+          new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)
+      );
+      $paths = [];
+      foreach ($iterator as $file) {
+          if (!$file->isFile() || $file->getExtension() !== "php") {
+              continue;
+          }
+          if (!is_readable($file->getPathname())) {
+              fwrite(STDERR, "Skipping unreadable route file: {$file->getPathname()}\n");
+              continue;
+          }
+          $contents = file_get_contents($file->getPathname());
+          if ($contents === false) {
+              fwrite(STDERR, "Failed to read route file: {$file->getPathname()}\n");
+              continue;
+          }
+          if (strpos($contents, "core\\router\\route") === false) {
+              continue;
+          }
+          if (!preg_match_all("/path:\\s*[\\x27\\x22]([^\\x27\\x22]+\\.php)[\\x27\\x22]/", $contents, $matches)) {
+              continue;
+          }
+          foreach ($matches[1] as $path) {
+              if ($path !== "" && $path[0] === "/") {
+                  $paths[$path] = true;
+              }
+          }
+      }
+      ksort($paths);
+      foreach (array_keys($paths) as $path) {
+          echo "location = {$path} {\n";
+          echo "    rewrite ^ /r.php last;\n";
+          echo "}\n";
+      }
+    ' "${ROUTER_SOURCE_ROOT}"
+  } > "${TMP_ROUTER_SHIM_CONF}"
+
+  if grep -q '^location = ' "${TMP_ROUTER_SHIM_CONF}"; then
+    mv "${TMP_ROUTER_SHIM_CONF}" "${ROUTER_SHIM_CONF}"
+    echo "Generated router shim locations from ${ROUTER_SOURCE_ROOT}"
+  else
+    rm -f "${TMP_ROUTER_SHIM_CONF}" "${ROUTER_SHIM_CONF}"
+    echo "No router shim locations detected in ${ROUTER_SOURCE_ROOT}"
+  fi
+}
 
 # Update Moodle
 if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
@@ -304,4 +376,25 @@ if [ -z "$AUTO_UPDATE_MOODLE" ] || [ "$AUTO_UPDATE_MOODLE" = true ]; then
   fi
 else
   echo "Skipped auto update of Moodle"
+fi
+
+generate_router_shim_locations
+
+# Moodle 5.2 public path/router environment checks (for example publicpaths.php checks)
+# require this flag to be set when the web server routing is configured.
+# The base image already applies nginx_root_directory/custom_router from env; here we only ensure
+# Moodle config is aligned with that routing, using the public web path as a fallback if needed.
+ROUTER_CONFIG_PATTERN='^\$CFG->routerconfigured[[:space:]]*='
+ROUTER_CONFIG_FILE="${WEB_PATH}"/config.php
+if [ ! -f "${ROUTER_CONFIG_FILE}" ] && [ -f "${PUBLIC_WEB_PATH}"/config.php ]; then
+  ROUTER_CONFIG_FILE="${PUBLIC_WEB_PATH}"/config.php
+fi
+if [ ! -f "${ROUTER_CONFIG_FILE}" ]; then
+  echo "Skipped routerconfigured update: config.php not found"
+elif grep -qE "${ROUTER_CONFIG_PATTERN}" "${ROUTER_CONFIG_FILE}"; then
+  sed -i -E 's|^\$CFG->routerconfigured[[:space:]]*=.*|$CFG->routerconfigured = 1;|' "${ROUTER_CONFIG_FILE}"
+elif grep -q 'require_once' "${ROUTER_CONFIG_FILE}"; then
+  sed -i '/require_once/i $CFG->routerconfigured = 1;' "${ROUTER_CONFIG_FILE}"
+else
+  echo "Skipped routerconfigured update: require_once not found"
 fi
