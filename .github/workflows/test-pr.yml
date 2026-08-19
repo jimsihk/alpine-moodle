@@ -7,7 +7,7 @@ on:
       - README.md
 
 env:
-  BASELINE_IMAGE_TAG=latest
+  BASELINE_IMAGE_TAG: latest
 
 jobs:
   prepare:
