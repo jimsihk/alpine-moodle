@@ -6,6 +6,9 @@ on:
     paths-ignore:
       - README.md
 
+env:
+  BASELINE_IMAGE_TAG: "405.702.0"
+
 jobs:
   prepare:
     outputs:
@@ -18,7 +21,7 @@ jobs:
 
       - name: Prepare Meta Data
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             localhost:5000/${{ github.repository }}
@@ -33,6 +36,7 @@ jobs:
     needs:
       - prepare
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     services:
       registry:
         image: registry:3
@@ -44,15 +48,15 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Set up QEMU
         if: matrix.test == 'multi'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         if: matrix.test == 'multi'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
         with:
           driver-opts: network=host
 
@@ -69,7 +73,7 @@ jobs:
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
-          export TEST_IMAGE_NAME=${{ github.repository }}:405.500.1
+          export TEST_IMAGE_NAME=${{ github.repository }}:${{ env.BASELINE_IMAGE_TAG }}
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           export AUTO_UPDATE_MOODLE=true
@@ -102,7 +106,7 @@ jobs:
           export LOCAL_PATH='./tmpdata'"${{ matrix.test }}"
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
-          export TEST_IMAGE_NAME=${{ github.repository }}:405.500.1
+          export TEST_IMAGE_NAME=${{ github.repository }}:${{ env.BASELINE_IMAGE_TAG }}
           #export ARG_MOODLE_GIT_BRANCH='MOODLE_405_STABLE'
           #export ARG_MOODLE_GIT_COMMIT='a57387fe2d8faa2e6fa36246f4dc59825c307e7f'
           #export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
@@ -135,7 +139,7 @@ jobs:
           echo '#'
           echo '###############################'
           echo "Test - Moodle update and plugin installation..."
-          export TEST_IMAGE_NAME=${{ github.repository }}:405.500.1-slim
+          export TEST_IMAGE_NAME=${{ github.repository }}:${{ env.BASELINE_IMAGE_TAG }}-slim
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-slim
           export AUTO_UPDATE_MOODLE=true
@@ -147,7 +151,7 @@ jobs:
 
       - name: Test build multi-arch
         if: matrix.test == 'multi'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true # to local registry

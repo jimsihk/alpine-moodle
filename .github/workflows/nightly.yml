@@ -32,10 +32,10 @@ jobs:
           echo "dryrun: ${{ vars.DRYRUN }}"
 
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Log in to the Nightly Container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ github.actor }}
@@ -47,7 +47,7 @@ jobs:
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
 
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: ${{ vars.DRYRUN != 'true' }}

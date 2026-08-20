@@ -3,8 +3,8 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/jimsihk/alpine-moodle.svg)](https://hub.docker.com/r/jimsihk/alpine-moodle/)
 ![Docker Image Size](https://img.shields.io/docker/image-size/jimsihk/alpine-moodle)
 ![nginx 1.28](https://img.shields.io/badge/nginx-1.28-brightgreen.svg)
-![php 8.3](https://img.shields.io/badge/php-8.3-brightgreen.svg)
-![moodle-4.5](https://img.shields.io/badge/moodle-4.5-yellow)
+![php 8.4](https://img.shields.io/badge/php-8.4-brightgreen.svg)
+![moodle-5.0](https://img.shields.io/badge/moodle-5.0-yellow)
 ![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 
 Moodle setup with high availability (HA) capabilities for Docker, build on [Alpine Linux](http://www.alpinelinux.org/).
@@ -36,6 +36,8 @@ Repository: https://github.com/jimsihk/alpine-moodle
 [![Renovate](https://img.shields.io/badge/renovate-enabled-yellow.svg)](https://app.renovatebot.com/dashboard)
 
 Moodle version and package dependencies are monitored and automatically updated through pull requests by Renovate: https://github.com/renovatebot/renovate
+
+When Renovate updates the `jimsihk/alpine-php-nginx` base image in `Dockerfile`, GitHub Actions also refreshes the Alpine package pins in that same PR if the image moves to a new Alpine major/minor series.
 
 [![Nightly Build](https://github.com/jimsihk/alpine-moodle/actions/workflows/nightly.yml/badge.svg)](https://github.com/jimsihk/alpine-moodle/actions/workflows/nightly.yml)
 
