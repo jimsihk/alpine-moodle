@@ -10,8 +10,6 @@ on:
         type: boolean
         default: false
     secrets:
-      RELEASE_BOT_APP_ID:
-        required: true
       RELEASE_BOT_PRIVATE_KEY:
         required: true
 
@@ -30,7 +28,7 @@ jobs:
         id: generate_release_token
         uses: actions/create-github-app-token@v3
         with:
-          app-id: ${{ secrets.RELEASE_BOT_APP_ID }}
+          client-id: ${{ vars.RELEASE_BOT_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
 
       - name: Checkout code
@@ -96,17 +94,12 @@ jobs:
       - name: Generate release name
         id: release_detail
         run: |
-          # Generate release name base on the tag e.g. v4.1.3.02-3
-          # Moodle major, minor, patch version, e.g. 4.1.3
           R1=`echo "${{ steps.moodle_version.outputs.release }}" | sed 's/ //g' | cut -d'(' -f1 | sed 's/\+//g'`
-          # Manually append the patch version ".0" if not found in Moodle version
           if [ "${R1//[^.]}" = '.' ]
           then
             R1="${R1}.0"
           fi
-          # Moodle incremental, e.g. 02
           R2=`echo "${{ steps.moodle_version.outputs.version }}" | cut -d'.' -f2`
-          # Repo release, e.g. 3
           R3=`echo "${{ steps.get_changes.outputs.new_tag }}" | cut -d'.' -f3`
           R_NAME="v$R1.$R2-$R3"
           echo "release_name=$R_NAME" >> $GITHUB_OUTPUT
@@ -120,7 +113,6 @@ jobs:
           echo "previous_tag=$LAST_TAG" >> $GITHUB_OUTPUT
           echo "previous_tag_commit=$LAST_TAG_COMMIT" >> $GITHUB_OUTPUT
           echo "Last tag at $LAST_TAG with SHA $LAST_TAG_COMMIT"
-          # Also get last commit before using tj-actions/changed-files as it assumed the commit hash must be different or error will be returned
           LAST_COMMIT=$(git rev-parse HEAD)
           echo "last_commit=$LAST_COMMIT" >> $GITHUB_OUTPUT
           echo "Last commit SHA is $LAST_COMMIT"
