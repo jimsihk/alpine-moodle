@@ -41,21 +41,15 @@ jobs:
 
       - name: Load tag history and suggest next tag
         id: analyze_tag_history
-        run: |
-          # Retrieve latest tag
-          LAST_TAG=`git describe --tags $(git rev-list --tags --max-count=1)`
-          MAJOR_MINOR_V="$(echo $LAST_TAG | cut -d'.' -f1,2)"
-          PATCH_V="$(echo $LAST_TAG | cut -d'.' -f3)"
-
-          # default increment only the patch version
-          NEW_PATCH_V="$((PATCH_V+1))"
-          NEW_TAG="${MAJOR_MINOR_V}.${NEW_PATCH_V}"
-          echo "new_tag=${NEW_TAG}" >> $GITHUB_OUTPUT
-
-      - name: Set next suggested tag version
-        id: next_tag_version
-        run: |
-          echo "new_tag=${{ steps.analyze_tag_history.outputs.new_tag }}" >> $GITHUB_OUTPUT
+        uses: anothrNick/github-tag-action@v1
+        env:
+          GITHUB_TOKEN: ${{ steps.generate_release_token.outputs.token }}
+          WITH_V: false
+          DRY_RUN: true
+          DEFAULT_BUMP: patch
+          RELEASE_BRANCHES: ${{ vars.RELEASE_BRANCHES }}
+          FORCE_WITHOUT_CHANGES: true
+          TAG_CONTEXT: repo
 
       - name: Get container Moodle version
         id: moodle_version
@@ -84,15 +78,15 @@ jobs:
       - name: Determine change in Moodle version
         id: get_changes
         run: |
-          echo "[${{ steps.moodle_version.outputs.tag }}] vs [${{ steps.next_tag_version.outputs.new_tag }}]"
+          echo "[${{ steps.moodle_version.outputs.tag }}] vs [${{ steps.analyze_tag_history.outputs.new_tag }}]"
           # Compare up to minor version
           PREFIX_MOODLE_TAG=`echo ${{ steps.moodle_version.outputs.tag }} | cut -d'.' -f1,2`
-          PREFIX_NEW_TAG=`echo ${{ steps.next_tag_version.outputs.new_tag }} | cut -d'.' -f1,2`
+          PREFIX_NEW_TAG=`echo ${{ steps.analyze_tag_history.outputs.new_tag }} | cut -d'.' -f1,2`
           if [ "$PREFIX_MOODLE_TAG" = "$PREFIX_NEW_TAG" ];
           then
             # same Moodle minor version
-            echo "Use ${{ steps.next_tag_version.outputs.new_tag }}"
-            echo "new_tag=${{ steps.next_tag_version.outputs.new_tag }}" >> $GITHUB_OUTPUT
+            echo "Use ${{ steps.analyze_tag_history.outputs.new_tag }}"
+            echo "new_tag=${{ steps.analyze_tag_history.outputs.new_tag }}" >> $GITHUB_OUTPUT
           else
             # Moodle minor version changed
             echo "Use ${{ steps.moodle_version.outputs.tag }}"
@@ -121,21 +115,22 @@ jobs:
       - name: Get commit SHA of last tag and last commit
         id: get_commit_sha
         run: |
-          LAST_TAG=`git describe --tags $(git rev-list --tags --max-count=1)`
+          LAST_TAG="${{ steps.analyze_tag_history.outputs.old_tag }}"
           LAST_TAG_COMMIT=`git rev-list -n 1 $LAST_TAG`
-          echo "previous_tag=$LAST_TAG_COMMIT" >> $GITHUB_OUTPUT
+          echo "previous_tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          echo "previous_tag_commit=$LAST_TAG_COMMIT" >> $GITHUB_OUTPUT
           echo "Last tag at $LAST_TAG with SHA $LAST_TAG_COMMIT"
-          #Also get last commit before using tj-actions/changed-files as it assumed the commit hash must be different or error will be returned
+          # Also get last commit before using tj-actions/changed-files as it assumed the commit hash must be different or error will be returned
           LAST_COMMIT=$(git rev-parse HEAD)
           echo "last_commit=$LAST_COMMIT" >> $GITHUB_OUTPUT
           echo "Last commit SHA is $LAST_COMMIT"
 
       - name: Get changed container files
-        if: steps.get_commit_sha.outputs.previous_tag != steps.get_commit_sha.outputs.last_commit
+        if: steps.get_commit_sha.outputs.previous_tag_commit != steps.get_commit_sha.outputs.last_commit
         id: changed-files
         uses: tj-actions/changed-files@v47
         with:
-          base_sha: ${{ steps.get_commit_sha.outputs.previous_tag }}
+          base_sha: ${{ steps.get_commit_sha.outputs.previous_tag_commit }}
           files: |
             rootfs/**
             Dockerfile
