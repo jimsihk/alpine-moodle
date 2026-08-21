@@ -10,6 +10,8 @@ on:
         type: boolean
         default: false
     secrets:
+      RELEASE_BOT_APP_ID:
+        required: true
       RELEASE_BOT_PRIVATE_KEY:
         required: true
 
@@ -28,7 +30,7 @@ jobs:
         id: generate_release_token
         uses: actions/create-github-app-token@v3
         with:
-          client-id: ${{ vars.RELEASE_BOT_APP_CLIENT_ID }}
+          client-id: ${{ vars.RELEASE_BOT_APP_ID }}
           private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
 
       - name: Checkout code
@@ -59,16 +61,11 @@ jobs:
           echo "version=${MOODLE_VERSION}" >> $GITHUB_OUTPUT
           echo "release=${MOODLE_RELEASE}" >> $GITHUB_OUTPUT
           echo "branch=${MOODLE_BRANCH}" >> $GITHUB_OUTPUT
-
-          # format moodle version number to tag format
-          # <branch>.<version (last 4 digits, leading zero removed)>.0
-          # e.g. branch 401 & version 2022112801.04 of v4.1.1 --> 401.104.0
           T1="$MOODLE_BRANCH"
           T2=$(printf "%01d" "$(echo $MOODLE_VERSION | cut -d'.' -f1 | cut -c9- | sed 's/^0*//')")
           T3=$(echo $MOODLE_VERSION | cut -d'.' -f2)
           MOODLE_TAG="$T1.$T2$T3.0"
           echo "tag=${MOODLE_TAG}" >> $GITHUB_OUTPUT
-
           echo "Moodle version: ${MOODLE_VERSION}"
           echo "Moodle release: ${MOODLE_RELEASE}"
           echo "Container tag: ${MOODLE_TAG}"
@@ -77,16 +74,13 @@ jobs:
         id: get_changes
         run: |
           echo "[${{ steps.moodle_version.outputs.tag }}] vs [${{ steps.analyze_tag_history.outputs.new_tag }}]"
-          # Compare up to minor version
           PREFIX_MOODLE_TAG=`echo ${{ steps.moodle_version.outputs.tag }} | cut -d'.' -f1,2`
           PREFIX_NEW_TAG=`echo ${{ steps.analyze_tag_history.outputs.new_tag }} | cut -d'.' -f1,2`
           if [ "$PREFIX_MOODLE_TAG" = "$PREFIX_NEW_TAG" ];
           then
-            # same Moodle minor version
             echo "Use ${{ steps.analyze_tag_history.outputs.new_tag }}"
             echo "new_tag=${{ steps.analyze_tag_history.outputs.new_tag }}" >> $GITHUB_OUTPUT
           else
-            # Moodle minor version changed
             echo "Use ${{ steps.moodle_version.outputs.tag }}"
             echo "new_tag=${{ steps.moodle_version.outputs.tag }}" >> $GITHUB_OUTPUT
           fi
