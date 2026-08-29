@@ -15,6 +15,7 @@ env:
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
   IMAGE_TAG: nightly
+  RETRY_PR_BRANCH_PREFIX: renovate
 
 jobs:
   build-container:
@@ -108,3 +109,30 @@ jobs:
     with:
       version: ${{ matrix.trial }}
       dryrun: ${{ vars.DRYRUN }}
+
+  retry-pr:
+    permissions:
+      contents: read
+      actions: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Retry opened renovate PR which has been failed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr list --state "open" --json headRefName --jq '.[] | select(.headRefName|test("${{ env.RETRY_PR_BRANCH_PREFIX }}/.")) | .headRefName' | while read PR_BRANCH
+          do
+            gh run list --event pull_request --status failure --workflow "Build and test PR" --branch "$PR_BRANCH" --limit 1 --json databaseId,headBranch --jq '.[] | join(" ")' | while read WORKFLOW_ID WORKFLOW_BRANCH
+            do
+              echo "Retrying for $WORKFLOW_BRANCH"
+              gh run rerun "$WORKFLOW_ID"
+            done
+          done
