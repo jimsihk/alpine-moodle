@@ -173,7 +173,7 @@ if [ -z "${PLUGIN_LIST}" ]; then
 fi
 
 if [ -z "${MOODLE_RELEASE}" ] && [ -f "${MOODLE_APP}/version.php" ]; then
-    MOODLE_RELEASE=$(php -r 'define("MOODLE_INTERNAL", true); require $argv[1]; preg_match("/^([0-9]+)\\.([0-9]+)/", $release, $m); echo $m[0] ?? "";' "${MOODLE_APP}/version.php")
+    MOODLE_RELEASE=$(php -r 'define("MOODLE_INTERNAL", true); define("MATURITY_STABLE", 200); require $argv[1]; preg_match("/^([0-9]+)\\.([0-9]+)/", $release, $m); echo $m[0] ?? "";' "${MOODLE_APP}/version.php")
 fi
 
 # Convert both the historical space-separated and comma-separated formats.
