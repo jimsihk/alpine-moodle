@@ -86,6 +86,81 @@ plugin_type_dir() {
     esac
 }
 
+resolve_source_archive() {
+    component="$1"
+    marketplace_url="$2"
+
+    # The Marketplace download endpoint now redirects unauthenticated clients
+    # to login.moodle.org. Use the public source-control URL advertised by the
+    # Marketplace/plugin directory instead and archive its default branch.
+    page=$(curl -fsSL \
+        -H 'Accept: text/html' \
+        -H 'User-Agent: alpine-moodle-plugin-installer/1.0' \
+        "${marketplace_url}")
+
+    source_url=$(printf '%s' "${page}" \
+        | grep -oE 'https?://[^"<> ]+' \
+        | sed 's/&amp;/\&/g' \
+        | grep -E '(github\.com|gitlab\.com|gricad-gitlab\.)' \
+        | grep -v 'marketplace\.moodle\.com' \
+        | head -n 1 || true)
+
+    if [ -z "${source_url}" ]; then
+        # The legacy plugin directory also exposes the source-control URL for
+        # plugins which do not expose it directly in the Marketplace HTML.
+        legacy_url="https://moodle.org/plugins/${component}"
+        legacy_page=$(curl -fsSL \
+            -H 'Accept: text/html' \
+            -H 'User-Agent: alpine-moodle-plugin-installer/1.0' \
+            "${legacy_url}" || true)
+        source_url=$(printf '%s' "${legacy_page}" \
+            | grep -oE 'https?://[^"<> ]+' \
+            | sed 's/&amp;/\&/g' \
+            | grep -E '(github\.com|gitlab\.com|gricad-gitlab\.)' \
+            | grep -v 'moodle\.org' \
+            | head -n 1 || true)
+    fi
+
+    if [ -z "${source_url}" ]; then
+        echo "ERROR: Unable to determine public source-control URL for [${component}]." >&2
+        return 1
+    fi
+
+    # Strip common URL decorations and Git suffixes.
+    source_url="${source_url%%\?*}"
+    source_url="${source_url%%#*}"
+    source_url="${source_url%/}"
+    source_url="${source_url%.git}"
+
+    case "${source_url}" in
+        https://github.com/*/*)
+            repo_path="${source_url#https://github.com/}"
+            owner="${repo_path%%/*}"
+            repo="${repo_path#*/}"
+            default_branch=$(curl -fsSL "https://api.github.com/repos/${owner}/${repo}" \
+                | grep -m1 '"default_branch"' \
+                | cut -d '"' -f4 || true)
+            if [ -z "${default_branch}" ]; then
+                echo "ERROR: Unable to determine default branch for [${source_url}]." >&2
+                return 1
+            fi
+            printf 'https://github.com/%s/%s/archive/refs/heads/%s.zip\n' "${owner}" "${repo}" "${default_branch}"
+            ;;
+        *)
+            # GitLab's public repository archive API defaults to the tip of the
+            # repository's default branch when no SHA is supplied.
+            case "${source_url}" in
+                */-/tree/*) source_url="${source_url%%/-/tree/*}" ;;
+            esac
+            project_path="${source_url#https://}"
+            project_host="${project_path%%/*}"
+            project_path="${project_path#*/}"
+            encoded_path=$(printf '%s' "${project_path}" | sed 's|/|%2F|g')
+            printf 'https://%s/api/v4/projects/%s/repository/archive.zip\n' "${project_host}" "${encoded_path}"
+            ;;
+    esac
+}
+
 install_plugin() {
     component="$1"
     echo "Installing plugin: ${component}..."
@@ -97,6 +172,7 @@ install_plugin() {
     if [[ "${component}" =~ ^https:// ]]; then
         url="${component}"
         referer=""
+        marketplace_component=false
     else
         marketplace_url="https://marketplace.moodle.com/plugins/${component}"
         echo "Resolving ${component} from Moodle Marketplace..."
@@ -112,6 +188,7 @@ install_plugin() {
         fi
         url="https://marketplace.moodle.com${download_path}"
         referer="${marketplace_url}"
+        marketplace_component=true
     fi
 
     zip="${tmp_parent}/${component##*/}.zip"
@@ -123,7 +200,18 @@ install_plugin() {
     if [ -n "${referer}" ]; then
         curl_args+=(-e "${referer}")
     fi
-    curl "${curl_args[@]}" "${url}" -o "${zip}"
+    curl "${curl_args[@]}" "${url}" -o "${zip}" || download_failed=true
+
+    if [ "${marketplace_component}" = true ] && { [ "${download_failed:-false}" = true ] || ! unzip -tq "${zip}" >/dev/null 2>&1; }; then
+        echo "Marketplace download requires authentication; falling back to the plugin's public source repository."
+        url=$(resolve_source_archive "${component}" "${marketplace_url}")
+        echo "Source: ${url}"
+        rm -f "${zip}"
+        curl_args=(-fsSL -L --retry 3 --retry-all-errors
+            -H 'Accept: application/zip, application/octet-stream'
+            -H 'User-Agent: alpine-moodle-plugin-installer/1.0')
+        curl "${curl_args[@]}" "${url}" -o "${zip}"
+    fi
 
     if ! unzip -tq "${zip}" >/dev/null; then
         echo "ERROR: Downloaded file is not a valid Moodle plugin ZIP: ${url}" >&2
@@ -155,8 +243,18 @@ install_plugin() {
             exit 1
         fi
     elif [ "${component}" != "${plugin_base_dirname}" ]; then
-        echo "ERROR: Marketplace package directory does not match component [${component}]." >&2
-        exit 1
+        # Repository archives commonly use owner-repo-<branch> as their root.
+        # Validate the actual Moodle component from version.php instead.
+        if [ -f "${extract}/${plugin_base_dirname}/version.php" ]; then
+            actual_component=$(awk -F"'" '/^\$plugin->component[[:space:]]*=/{print $2; exit}' "${extract}/${plugin_base_dirname}/version.php")
+            if [ "${actual_component}" != "${component}" ]; then
+                echo "ERROR: Plugin ZIP component [${actual_component}] does not match requested component [${component}]." >&2
+                exit 1
+            fi
+        else
+            echo "ERROR: Plugin ZIP does not contain version.php." >&2
+            exit 1
+        fi
     fi
 
     plugin_type="${component%%_*}"
