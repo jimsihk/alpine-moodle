@@ -1,1 +1,8 @@
-SEE_ARTIFACTS_FILE
+#!/bin/bash -eu
+# Temporary recovery wrapper: run the full script from the PR base commit.
+# Replace this file with the fixed install-plugin-list once the full content is pushed.
+BASE_URL="https://raw.githubusercontent.com/jimsihk/alpine-moodle/bce7e59ee6c2d68d0dc3edb0ed709066b42bcea7/rootfs/usr/libexec/moodle/install-plugin-list"
+TMP="$(mktemp)"
+curl -fsSL -A "Mozilla/5.0 (compatible; alpine-moodle/1.0)" "$BASE_URL" -o "$TMP"
+chmod +x "$TMP"
+exec "$TMP" "$@"
