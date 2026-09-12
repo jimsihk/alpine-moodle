@@ -1,0 +1,185 @@
+#!/bin/bash -eu
+#
+# Install Moodle plugins using Moodle Marketplace when the legacy Plugins API
+# is unavailable. Plugin entries are Moodle component names (for example
+# report_benchmark). Direct HTTPS ZIP URLs are also accepted.
+#
+
+MOODLE_APP=${MOODLE_APP:-/var/www/html}
+MOODLE_RELEASE=${MOODLE_RELEASE:-}
+PLUGIN_LIST=${MOODLE_PLUGIN_LIST:-}
+
+usage() {
+    cat 1>&2 <<EOF
+Install Moodle plugin(s) from Moodle Marketplace.
+
+ENVIRONMENT VARS:
+MOODLE_APP       path to Moodle code (default /var/www/html)
+MOODLE_RELEASE   Moodle release (for example 5.0); detected from version.php when empty
+MOODLE_PLUGIN_LIST plugin component names or HTTPS ZIP URLs, comma/space separated
+
+USAGE:
+    install-plugin-list-marketplace -p 'report_benchmark,mod_example'
+EOF
+}
+
+plugin_type_dir() {
+    case "$1" in
+        tinymce) echo 'lib/editor/tinymce/plugins' ;;
+        tiny) echo 'lib/editor/tiny/plugins' ;;
+        workshopallocation) echo 'mod/workshop/allocation' ;;
+        atto) echo 'lib/editor/atto/plugins' ;;
+        availability) echo 'availability/condition' ;;
+        assignsubmission) echo 'mod/assign/submission' ;;
+        logstore) echo 'admin/tool/log/store' ;;
+        quizaccess) echo 'mod/quiz/accessrule' ;;
+        assignment) echo 'mod/assignment/type' ;;
+        assignfeedback) echo 'mod/assign/feedback' ;;
+        gradingform) echo 'grade/grading/form' ;;
+        qbehaviour) echo 'question/behaviour' ;;
+        profilefield) echo 'user/profile/field' ;;
+        workshopform) echo 'mod/workshop/form' ;;
+        workshopeval) echo 'mod/workshop/eval' ;;
+        scormreport) echo 'mod/scorm/report' ;;
+        fileconverter) echo 'files/converter' ;;
+        qformat) echo 'question/format' ;;
+        quiz) echo 'mod/quiz/report' ;;
+        ltiservice) echo 'mod/lti/service' ;;
+        datapreset) echo 'mod/data/preset' ;;
+        ltisource) echo 'mod/lti/source' ;;
+        datafield) echo 'mod/data/field' ;;
+        message) echo 'message/output' ;;
+        booktool) echo 'mod/book/tool' ;;
+        calendartype) echo 'calendar/type' ;;
+        format) echo 'course/format' ;;
+        coursereport) echo 'course/report' ;;
+        mlbackend) echo 'lib/mlbackend' ;;
+        search) echo 'search/engine' ;;
+        antivirus) echo 'lib/antivirus' ;;
+        qtype) echo 'question/type' ;;
+        media) echo 'media/player' ;;
+        cachestore) echo 'cache/stores' ;;
+        gradereport) echo 'grade/report' ;;
+        gradeimport) echo 'grade/import' ;;
+        gradeexport) echo 'grade/export' ;;
+        mnetservice) echo 'mnet/service' ;;
+        cachelock) echo 'cache/locks' ;;
+        plagiarism) echo 'plagiarism' ;;
+        repository) echo 'repository' ;;
+        tool) echo 'admin/tool' ;;
+        editor) echo 'lib/editor' ;;
+        dataformat) echo 'dataformat' ;;
+        webservice) echo 'webservice' ;;
+        portfolio) echo 'portfolio' ;;
+        filter) echo 'filter' ;;
+        report) echo 'report' ;;
+        block) echo 'blocks' ;;
+        local) echo 'local' ;;
+        enrol) echo 'enrol' ;;
+        theme) echo 'theme' ;;
+        auth) echo 'auth' ;;
+        mod) echo 'mod' ;;
+        *)
+            echo "ERROR: Unsupported Moodle plugin type: $1" >&2
+            return 1
+            ;;
+    esac
+}
+
+install_plugin() {
+    component="$1"
+    echo "Installing plugin: ${component}..."
+
+    tmp_parent="/tmp/moodle-plugins/${component}"
+    rm -rf "${tmp_parent}"
+    mkdir -p "${tmp_parent}"
+
+    if [[ "${component}" =~ ^https:// ]]; then
+        url="${component}"
+        plugin_component="$(basename "${url}" .zip)"
+    else
+        plugin_component="${component}"
+        marketplace_url="https://marketplace.moodle.com/plugins/${component}"
+        echo "Resolving ${component} from Moodle Marketplace..."
+        download_path=$(curl -fsSL \
+            -H 'Accept: text/html' \
+            -H 'User-Agent: alpine-moodle-plugin-installer/1.0' \
+            "${marketplace_url}" \
+            | grep -oE '/plugins/[0-9]+/versions/[0-9]+/download' \
+            | head -n 1 || true)
+        if [ -z "${download_path}" ]; then
+            echo "ERROR: No downloadable version found for [${component}] on Moodle Marketplace." >&2
+            exit 1
+        fi
+        url="https://marketplace.moodle.com${download_path}"
+    fi
+
+    zip="${tmp_parent}/${component##*/}.zip"
+    echo "Downloading plugin zip: ${component}"
+    echo "Source: ${url}"
+    curl -fsSL -L "${url}" -o "${zip}"
+
+    if ! unzip -tq "${zip}" >/dev/null; then
+        echo "ERROR: Downloaded file is not a valid Moodle plugin ZIP: ${url}" >&2
+        exit 1
+    fi
+
+    extract="${tmp_parent}/extract"
+    mkdir -p "${extract}"
+    unzip -q "${zip}" -d "${extract}"
+    plugin_base_dirname=$(basename "$(find "${extract}" -mindepth 1 -maxdepth 1 -type d | head -n 1)")
+
+    if [ -z "${plugin_base_dirname}" ]; then
+        echo "ERROR: Plugin ZIP contains no top-level directory: ${url}" >&2
+        exit 1
+    fi
+
+    if [ "${component}" != "${plugin_base_dirname}" ]; then
+        # Marketplace packages normally use the component name. For direct URLs,
+        # use version.php to validate the component before installation.
+        if [ -f "${extract}/${plugin_base_dirname}/version.php" ]; then
+            actual_component=$(grep -E "^\\$plugin->component[[:space:]]*=" "${extract}/${plugin_base_dirname}/version.php" | sed -E "s/.*=['\\\"]([^'\\\"]+).*/\\1/" || true)
+            if [ -n "${actual_component}" ]; then
+                component="${actual_component}"
+            else
+                echo "ERROR: Unable to determine plugin component from version.php." >&2
+                exit 1
+            fi
+        else
+            echo "ERROR: Plugin ZIP does not contain version.php." >&2
+            exit 1
+        fi
+    fi
+
+    plugin_type="${component%%_*}"
+    plugin_name="${component#*_}"
+    destination="${MOODLE_APP}/$(plugin_type_dir "${plugin_type}")/${plugin_name}"
+
+    if [ -d "${destination}" ]; then
+        echo "Destination directory already exists: ${destination}"
+        backup="${tmp_parent}/backup"
+        mkdir -p "${backup}"
+        mv "${destination}" "${backup}/"
+    fi
+
+    mkdir -p "$(dirname "${destination}")"
+    echo "Installing to: ${destination}"
+    mv "${extract}/${plugin_base_dirname}" "${destination}"
+}
+
+if [ -z "${PLUGIN_LIST}" ]; then
+    usage
+    exit 1
+fi
+
+if [ -z "${MOODLE_RELEASE}" ] && [ -f "${MOODLE_APP}/version.php" ]; then
+    MOODLE_RELEASE=$(php -r 'define("MOODLE_INTERNAL", true); require $argv[1]; preg_match("/^([0-9]+)\\.([0-9]+)/", $release, $m); echo $m[0] ?? "";' "${MOODLE_APP}/version.php")
+fi
+
+# Convert both the historical space-separated and comma-separated formats.
+PLUGIN_LIST=$(echo "${PLUGIN_LIST}" | tr ',' ' ')
+for plugin in ${PLUGIN_LIST}; do
+    install_plugin "${plugin}"
+done
+
+rm -rf /tmp/moodle-plugins
