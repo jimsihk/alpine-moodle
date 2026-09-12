@@ -147,10 +147,11 @@ resolve_source_archive() {
             printf 'https://github.com/%s/%s/archive/refs/heads/%s.zip\n' "${owner}" "${repo}" "${default_branch}"
             ;;
         *)
-            # GitLab's public repository archive API defaults to the tip of the
-            # repository's default branch when no SHA is supplied.
+            # GitLab pages commonly advertise repository files, raw files,
+            # screenshots, or other paths below the project root. Strip the
+            # GitLab /-/ action path before building the project archive URL.
             case "${source_url}" in
-                */-/tree/*) source_url="${source_url%%/-/tree/*}" ;;
+                */-/*) source_url="${source_url%%/-/*}" ;;
             esac
             project_path="${source_url#https://}"
             project_host="${project_path%%/*}"
