@@ -153,6 +153,10 @@ If a cluster of Moodle containers are deployed for HA (e.g. on Kubernetes), it i
 ### Moodle plugins
 
 #### `ARG_MOODLE_PLUGIN_LIST`: define the list of plugins
+Plugin ZIPs are resolved from [Moodle Marketplace](https://marketplace.moodle.com/) using the public plugin info API and the unauthenticated Marketplace download endpoint. Component names (for example `mod_attendance`) continue to work.
+
+Direct HTTPS ZIP URLs are also accepted. Use a ZIP URL for plugins that were not migrated to Moodle Marketplace.
+
 - For installing plugins while building the main Dockerfile (slower), use `ARG_MOODLE_PLUGIN_LIST`:
 ```
 docker buildx build . -t my_moodle_image:my_tag \
@@ -188,6 +192,12 @@ RUN /usr/libexec/moodle/download-moodle-plugin
 docker buildx build . -t my_moodle_image:my_tag \
     -f Dockerfile.plugins \
     --build-arg ARG_MOODLE_PLUGIN_LIST='mod_attendance,mod_checklist,mod_customcert,block_checklist,gradeexport_checklist'
+```
+- Direct ZIP URL example (for plugins not listed on Moodle Marketplace):
+```
+docker buildx build . -t my_moodle_image:my_tag \
+    -f Dockerfile.plugins \
+    --build-arg ARG_MOODLE_PLUGIN_LIST='https://github.com/example/moodle-local_foo/archive/refs/tags/v1.0.0.zip'
 ```
 
 #### `ARG_ALLOW_INCOMPATIBLE_PLUGIN`: allow installing incompatible plugins 

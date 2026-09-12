@@ -4,7 +4,11 @@
 # - Corrected typo
 # - Adjusted some commands to make code smell happy
 # - Added plugin name when error in PHP function install_path
+# - Resolve ZIPs from Moodle Marketplace (pluginfo + unauthenticated download API)
+#   and fall back to the plugin's public VCS archive when the ZIP is unavailable
 # TODO: port to /bin/sh
+
+INSTALLER_USER_AGENT='Mozilla/5.0 (compatible; alpine-moodle/1.0; +https://github.com/jimsihk/alpine-moodle)'
 
 usage() {
     cat 1>&2 <<EOF
@@ -14,7 +18,7 @@ It requires PHP cli, PHP json, unzip
 ENVIRONMENT VARS:
 MOODLE_APP                  path to moodle code
 MOODLE_API_PLUGIN_INFO      url to plugin info json
-MOODLE_PLUGIN_LIST          plugin list separated by space
+MOODLE_PLUGIN_LIST          plugin list separated by space or comma
 MOODLE_RELEASE              Moodle release (ex: '3.9'). Default is gotten from version.php
 
 USAGE:
@@ -24,194 +28,527 @@ OPTIONS (install moodle plugin(s)):
   -f            force installation of latest available version despite lack of compatibility from maturity
   -m            minimum plugin maturity level (ex: '200'). Default 0
   -p            plugin list, separated by comma, to be installed
+                Component names or HTTPS ZIP URLs are accepted
 
 EXAMPLES:
     install-plugin-list -p 'mod_jitsi,mod_customcert,atto_multilang2'
     MOODLE_PLUGIN_LIST='mod_jitsi,mod_customcert,atto_multilang2' install-plugin-list
+    install-plugin-list -p 'https://github.com/example/moodle-local_foo/archive/refs/tags/v1.0.0.zip'
 EOF
 }
 
-install_plugin() {
-    # set plugin component name
-    export script_moodle_plugin_component_name=$1
-    echo "Installing plugin: ${script_moodle_plugin_component_name}..."
-    # get url, md5 and destination directory
-    script_moodle_plugin_component_url_md5_dest=($(get_plugin_url_md5_dest))
-    script_moodle_plugin_component_url="${script_moodle_plugin_component_url_md5_dest[0]:1:-1}"
-    script_moodle_plugin_component_md5="${script_moodle_plugin_component_url_md5_dest[1]:1:-1}"
-    script_moodle_plugin_component_dest="${script_moodle_plugin_component_url_md5_dest[2]:1:-1}"
-    script_moodle_plugin_component_tmp_parent_dest="/tmp/moodle-plugins/${script_moodle_plugin_component_md5}"
-    script_moodle_plugin_component_tmp_dest="${script_moodle_plugin_component_tmp_parent_dest}/$(basename ${script_moodle_plugin_component_dest})"
-    script_moodle_plugin_component_bak_dest="${script_moodle_plugin_component_tmp_parent_dest}/backup"
-    script_moodle_plugin_component_zip="${script_moodle_plugin_component_tmp_parent_dest}/${script_moodle_plugin_component_name}.zip"
-    # create temp and backup dir
-    mkdir -p "${script_moodle_plugin_component_tmp_parent_dest}" "${script_moodle_plugin_component_bak_dest}" "${script_moodle_plugin_component_tmp_dest}"
-    # download zip
-    if ! test -f "${script_moodle_plugin_component_zip}"; then
-        echo "Downloading plugin zip: ${script_moodle_plugin_component_name}"
-        echo "Source: ${script_moodle_plugin_component_url}"
-        echo "Destination: ${script_moodle_plugin_component_zip}"
-        curl -sL "${script_moodle_plugin_component_url}" -o "${script_moodle_plugin_component_zip}"
-    else
-        echo "Plugin zip already exists: ${script_moodle_plugin_component_zip}"
-    fi
-    # check md5
-    md5_from_file=$(md5sum "${script_moodle_plugin_component_zip}" | cut -d " " -f1)
-    if [ "${md5_from_file}" != "${script_moodle_plugin_component_md5}" ]; then
-        >&2 echo "ERROR: MD5 does not match: ${md5_from_file} != ${script_moodle_plugin_component_md5}.\n"
-        exit 1;
-    fi
-    # backup and remove destination directory, if any
-    if test -d "${script_moodle_plugin_component_dest}"; then
-        echo "Destination directory already exists: ${script_moodle_plugin_component_dest}"
-        echo "Moving it to: ${script_moodle_plugin_component_bak_dest}"
-        mv "${script_moodle_plugin_component_dest}" "${script_moodle_plugin_component_bak_dest}"
-    fi
-    # unzip plugin in destination directory
-    echo "Uncompressing to: ${script_moodle_plugin_component_tmp_dest}"
-    unzip -qo "${script_moodle_plugin_component_zip}" -d "${script_moodle_plugin_component_tmp_dest}"
-    plugin_base_dirname=$(basename "${script_moodle_plugin_component_tmp_dest}"/$(ls -d "${script_moodle_plugin_component_tmp_dest}"/* | head -n 1))
-    echo "Installing to: ${script_moodle_plugin_component_dest}"
-    mv "${script_moodle_plugin_component_tmp_dest}/${plugin_base_dirname}/" "${script_moodle_plugin_component_dest}"
+plugin_component_from_version_php() {
+    awk -F"['\"]" '/\$plugin->component[[:space:]]*=/{print $2; exit}' "$1"
 }
 
-get_plugin_url_md5_dest() {
-    # install moodle plugin querying Moodle public API
+is_zip() {
+    unzip -tq "$1" >/dev/null 2>&1
+}
+
+download_zip() {
+    url="$1"
+    dest="$2"
+    echo "Source: ${url}"
+    echo "Destination: ${dest}"
+    curl -fsSL --retry 3 --retry-delay 2 \
+        -A "${INSTALLER_USER_AGENT}" \
+        -H 'Accept: application/zip, application/octet-stream, */*' \
+        -o "${dest}" "${url}"
+}
+
+git_archive_url() {
+    repo="$1"
+    ref="$2"
+    repo="${repo%%\?*}"; repo="${repo%%#*}"; repo="${repo%/}"; repo="${repo%.git}"
+    case "${repo}" in
+        https://github.com/*/*)
+            if [ -n "${ref}" ]; then
+                printf '%s/archive/refs/tags/%s.zip\n' "${repo}" "${ref}"
+            else
+                printf '%s/archive/HEAD.zip\n' "${repo}"
+            fi
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+place_plugin() {
+    zip="$1"
+    expected_component="$2"
+    dest="$3"
+    extract="$4"
+
+    mkdir -p "${extract}"
+    unzip -qo "${zip}" -d "${extract}"
+    plugin_base_dirname=$(basename "$(find "${extract}" -mindepth 1 -maxdepth 1 -type d | head -n 1)")
+    if [ -z "${plugin_base_dirname}" ]; then
+        echo "ERROR: Plugin ZIP contains no top-level directory." >&2
+        exit 1
+    fi
+
+    version_php="${extract}/${plugin_base_dirname}/version.php"
+    if [ ! -f "${version_php}" ]; then
+        echo "ERROR: Plugin ZIP does not contain version.php." >&2
+        exit 1
+    fi
+
+    actual_component=$(plugin_component_from_version_php "${version_php}")
+    if [ -z "${actual_component}" ]; then
+        echo "ERROR: Unable to determine plugin component from version.php." >&2
+        exit 1
+    fi
+    if [ -n "${expected_component}" ] && [ "${actual_component}" != "${expected_component}" ]; then
+        echo "ERROR: Plugin ZIP component [${actual_component}] does not match requested component [${expected_component}]." >&2
+        exit 1
+    fi
+
+    if [ -z "${dest}" ]; then
+        dest=$(plugin_dest_for_component "${actual_component}")
+    fi
+
+    if test -d "${dest}"; then
+        echo "Destination directory already exists: ${dest}"
+        bak="$(dirname "${extract}")/backup"
+        mkdir -p "${bak}"
+        echo "Moving it to: ${bak}"
+        mv "${dest}" "${bak}/"
+    fi
+
+    mkdir -p "$(dirname "${dest}")"
+    echo "Installing to: ${dest}"
+    mv "${extract}/${plugin_base_dirname}/" "${dest}"
+}
+
+plugin_dest_for_component() {
+    export script_moodle_plugin_component_name="$1"
+    php <<'CODE'
+<?php
+$MOODLE_APP = getenv('MOODLE_APP') ?: '/var/www/html';
+$component = getenv('script_moodle_plugin_component_name');
+echo install_path_for_component($MOODLE_APP, $component);
+
+function install_path_for_component($moodle_app, $component) {
+    $parts = explode('_', $component, 2);
+    if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') {
+        file_put_contents("php://stderr", "ERROR: Invalid plugin component [${component}].\n");
+        exit(1);
+    }
+    return install_path($moodle_app, $parts[0], $parts[1]);
+}
+
+function install_path($moodle_app, $plugin_type, $plugin_name) {
+    $dirs = array(
+        'tinymce' => 'lib/editor/tinymce/plugins',
+        'tiny' => 'lib/editor/tiny/plugins',
+        'workshopallocation' => 'mod/workshop/allocation',
+        'atto' => 'lib/editor/atto/plugins',
+        'availability' => 'availability/condition',
+        'assignsubmission' => 'mod/assign/submission',
+        'logstore' => 'admin/tool/log/store',
+        'quizaccess' => 'mod/quiz/accessrule',
+        'assignment' => 'mod/assignment/type',
+        'assignfeedback' => 'mod/assign/feedback',
+        'gradingform' => 'grade/grading/form',
+        'qbehaviour' => 'question/behaviour',
+        'profilefield' => 'user/profile/field',
+        'workshopform' => 'mod/workshop/form',
+        'workshopeval' => 'mod/workshop/eval',
+        'scormreport' => 'mod/scorm/report',
+        'fileconverter' => 'files/converter',
+        'qformat' => 'question/format',
+        'quiz' => 'mod/quiz/report',
+        'ltiservice' => 'mod/lti/service',
+        'datapreset' => 'mod/data/preset',
+        'ltisource' => 'mod/lti/source',
+        'datafield' => 'mod/data/field',
+        'message' => 'message/output',
+        'booktool' => 'mod/book/tool',
+        'calendartype' => 'calendar/type',
+        'format' => 'course/format',
+        'coursereport' => 'course/report',
+        'mlbackend' => 'lib/mlbackend',
+        'search' => 'search/engine',
+        'antivirus' => 'lib/antivirus',
+        'qtype' => 'question/type',
+        'media' => 'media/player',
+        'cachestore' => 'cache/stores',
+        'gradereport' => 'grade/report',
+        'gradeimport' => 'grade/import',
+        'gradeexport' => 'grade/export',
+        'mnetservice' => 'mnet/service',
+        'cachelock' => 'cache/locks',
+        'plagiarism' => 'plagiarism',
+        'repository' => 'repository',
+        'tool' => 'admin/tool',
+        'editor' => 'lib/editor',
+        'dataformat' => 'dataformat',
+        'webservice' => 'webservice',
+        'portfolio' => 'portfolio',
+        'filter' => 'filter',
+        'report' => 'report',
+        'block' => 'blocks',
+        'local' => 'local',
+        'enrol' => 'enrol',
+        'theme' => 'theme',
+        'auth' => 'auth',
+        'mod' => 'mod',
+        'aiplacement' => 'ai/placement',
+        'aiprovider' => 'ai/provider',
+        'communication' => 'communication/provider',
+        'customfield' => 'customfield/field',
+        'gradepenalty' => 'grade/penalty',
+        'qbank' => 'question/bank',
+        'contenttype' => 'contentbank/contenttype',
+        'h5plib' => 'h5p/h5plib',
+        'paygw' => 'payment/gateway',
+        'smsgateway' => 'sms/gateway',
+    );
+
+    $components_file = $moodle_app . '/lib/components.json';
+    if (is_readable($components_file)) {
+        $components = json_decode(file_get_contents($components_file), true);
+        foreach (array('plugintypes', 'deprecatedplugintypes') as $key) {
+            if (!empty($components[$key]) && is_array($components[$key])) {
+                foreach ($components[$key] as $type => $dir) {
+                    if (is_string($dir) && $dir !== '') {
+                        $dirs[$type] = str_replace('\\/', '/', $dir);
+                    }
+                }
+            }
+        }
+    }
+
+    if (array_key_exists($plugin_type, $dirs)) {
+        return $moodle_app . '/' . $dirs[$plugin_type] . '/' . $plugin_name;
+    }
+
+    file_put_contents("php://stderr", "ERROR: " . $plugin_type . " is not a valid type!" . "\n");
+    exit(1);
+}
+CODE
+}
+
+install_plugin_from_url() {
+    url="$1"
+    echo "Installing plugin from URL: ${url}..."
+    tmp_parent="/tmp/moodle-plugins/url-$(echo "${url}" | md5sum | cut -d ' ' -f1)"
+    rm -rf "${tmp_parent}"
+    mkdir -p "${tmp_parent}"
+    zip="${tmp_parent}/plugin.zip"
+    if ! download_zip "${url}" "${zip}" || ! is_zip "${zip}"; then
+        echo "ERROR: Downloaded file is not a valid Moodle plugin ZIP: ${url}" >&2
+        exit 1
+    fi
+    place_plugin "${zip}" "" "" "${tmp_parent}/extract"
+}
+
+install_plugin() {
+    component="$1"
+    case "${component}" in
+        http://*|https://*)
+            install_plugin_from_url "${component}"
+            return
+            ;;
+    esac
+
+    export script_moodle_plugin_component_name="${component}"
+    echo "Installing plugin: ${component}..."
+
+    downloadurl=""
+    downloadmd5=""
+    installpath=""
+    sourceurl=""
+    vcstag=""
+    if ! plugin_meta=$(get_plugin_meta); then
+        exit 1
+    fi
+    while IFS='=' read -r key value; do
+        case "${key}" in
+            downloadurl) downloadurl="${value}" ;;
+            downloadmd5) downloadmd5="${value}" ;;
+            installpath) installpath="${value}" ;;
+            source) sourceurl="${value}" ;;
+            vcstag) vcstag="${value}" ;;
+        esac
+    done <<< "${plugin_meta}"
+
+    if [ -z "${installpath}" ]; then
+        echo "ERROR: No install path for [${component}]." >&2
+        exit 1
+    fi
+
+    tmp_key="${downloadmd5:-${component}}"
+    tmp_parent="/tmp/moodle-plugins/${tmp_key}"
+    rm -rf "${tmp_parent}"
+    mkdir -p "${tmp_parent}"
+    zip="${tmp_parent}/${component}.zip"
+
+    downloaded=false
+    if [ -n "${downloadurl}" ]; then
+        echo "Downloading plugin zip: ${component}"
+        if download_zip "${downloadurl}" "${zip}" && is_zip "${zip}"; then
+            downloaded=true
+            if [ -n "${downloadmd5}" ]; then
+                md5_from_file=$(md5sum "${zip}" | cut -d " " -f1)
+                if [ "${md5_from_file}" != "${downloadmd5}" ]; then
+                    echo "WARNING: MD5 does not match (${md5_from_file} != ${downloadmd5}); ZIP is valid, continuing."
+                fi
+            fi
+        else
+            echo "Marketplace/plugin ZIP download failed for [${component}]; trying public source archive."
+            rm -f "${zip}"
+        fi
+    fi
+
+    if [ "${downloaded}" != true ]; then
+        archive_url=""
+        if archive_url=$(git_archive_url "${sourceurl}" "${vcstag}"); then
+            echo "Downloading plugin zip: ${component}"
+            if ! download_zip "${archive_url}" "${zip}" || ! is_zip "${zip}"; then
+                echo "ERROR: Unable to download a valid plugin ZIP for [${component}]." >&2
+                exit 1
+            fi
+        else
+            echo "ERROR: No plugin ZIP or public source archive for [${component}]." >&2
+            echo "Provide an HTTPS ZIP URL in MOODLE_PLUGIN_LIST if the plugin is not on Moodle Marketplace." >&2
+            exit 1
+        fi
+    fi
+
+    place_plugin "${zip}" "${component}" "${installpath}" "${tmp_parent}/extract"
+}
+
+get_plugin_meta() {
+    # Resolve plugin metadata from the public pluginfo API.
+    # ZIP downloads now come from Moodle Marketplace:
+    #   https://marketplace.moodle.com/api/plugins/{component}/versions/{version}/download
     php <<'CODE'
 <?php
 
-# vars
 $MOODLE_APP = getenv('MOODLE_APP') ?: '/var/www/html';
 $MOODLE_API_PLUGIN_INFO = getenv('MOODLE_API_PLUGIN_INFO') ?: 'https://download.moodle.org/api/1.3/pluginfo.php';
 $MOODLE_PLUGIN_COMPONENT_NAME = getenv('script_moodle_plugin_component_name');
 $MOODLE_RELEASE = getenv('MOODLE_RELEASE');
-$MOODLE_PLUGIN_FORCE = getenv("script_moodle_plugin_force");
+$MOODLE_PLUGIN_FORCE = getenv('script_moodle_plugin_force');
 $MOODLE_PLUGIN_MATURITY = (int) getenv('script_moodle_plugin_maturity') ?: 0;
-$to_be_installed = $MOODLE_PLUGIN_FORCE == "true" ? true : false;
+$to_be_installed = $MOODLE_PLUGIN_FORCE == 'true' ? true : false;
+$INSTALLER_USER_AGENT = 'Mozilla/5.0 (compatible; alpine-moodle/1.0; +https://github.com/jimsihk/alpine-moodle)';
 
-# not empty plugin component name
 if (empty($MOODLE_PLUGIN_COMPONENT_NAME)) {
     file_put_contents("php://stderr", "ERROR: No plugin passed.\n");
     exit(1);
 }
 
-# moodle major version from version.php
 if (empty($MOODLE_RELEASE)) {
     define('MOODLE_INTERNAL', true);
-    define('MATURITY_STABLE',   200);
+    define('MATURITY_STABLE', 200);
     require($MOODLE_APP . '/version.php');
     preg_match('/^([0-9]+)\.([0-9]+)/', $release, $matches);
     $MOODLE_RELEASE = $matches[0];
 }
 
-
-# functions
-function install_path($plugin_type, $plugin_name) {
-    global $MOODLE_APP;
-
-    /**
-    * Array adapted from:
-    * moosh - Moodle Shell
-    * https://github.com/tmuras/moosh/blob/549c5fb2f6fdccbc6a961668aa873b1548a17e31/includes/functions.php
-    */
-    $install_path_directory_from_type = array(
-        'tinymce' => array('dir' => 'lib/editor/tinymce/plugins'),
-        'tiny' => array('dir' => 'lib/editor/tiny/plugins'),
-        'workshopallocation' => array('dir' => 'mod/workshop/allocation'),
-        'atto' => array('dir' => 'lib/editor/atto/plugins'), 'availability' => array('dir' => 'availability/condition'),
-        'assignsubmission' => array('dir' => 'mod/assign/submission'), 'logstore' => array('dir' => 'admin/tool/log/store'),
-        'quizaccess' => array('dir' => 'mod/quiz/accessrule'), 'assignment' => array('dir' => 'mod/assignment/type'),
-        'assignfeedback' => array('dir' => 'mod/assign/feedback'), 'gradingform' => array('dir' => 'grade/grading/form'),
-        'qbehaviour' => array('dir' => 'question/behaviour'), 'profilefield' => array('dir' => 'user/profile/field'),
-        'workshopform' => array('dir' => 'mod/workshop/form'), 'workshopeval' => array('dir' => 'mod/workshop/eval'),
-        'scormreport' => array('dir' => 'mod/scorm/report'), 'fileconverter' => array('dir' => 'files/converter'),
-        'qformat' => array('dir' => 'question/format'), 'quiz' => array('dir' => 'mod/quiz/report'),
-        'ltiservice' => array('dir' => 'mod/lti/service'), 'datapreset' => array('dir' => 'mod/data/preset'),
-        'ltisource' => array('dir' => 'mod/lti/source'), 'datafield' => array('dir' => 'mod/data/field'),
-        'message' => array('dir' => 'message/output'), 'booktool' => array('dir' => 'mod/book/tool'),
-        'calendartype' => array('dir' => 'calendar/type'), 'format' => array('dir' => 'course/format'),
-        'coursereport' => array('dir' => 'course/report'), 'mlbackend' => array('dir' => 'lib/mlbackend'),
-        'search' => array('dir' => 'search/engine'), 'antivirus' => array('dir' => 'lib/antivirus'),
-        'qtype' => array('dir' => 'question/type'), 'media' => array('dir' => 'media/player'),
-        'cachestore' => array('dir' => 'cache/stores'), 'gradereport' => array('dir' => 'grade/report'),
-        'gradeimport' => array('dir' => 'grade/import'), 'gradeexport' => array('dir' => 'grade/export'),
-        'mnetservice' => array('dir' => 'mnet/service'), 'cachelock' => array('dir' => 'cache/locks'),
-        'plagiarism' => array('dir' => 'plagiarism'), 'repository' => array('dir' => 'repository'),
-        'tool' => array('dir' => 'admin/tool'), 'editor' => array('dir' => 'lib/editor'),
-        'dataformat' => array('dir' => 'dataformat'), 'webservice' => array('dir' => 'webservice'),
-        'portfolio' => array('dir' => 'portfolio'), 'filter' => array('dir' => 'filter'),
-        'report' => array('dir' => 'report'), 'block' => array('dir' => 'blocks'), 'local' => array('dir' => 'local'),
-        'enrol' => array('dir' => 'enrol'), 'theme' => array('dir' => 'theme'), 'auth' => array('dir' => 'auth'),
-        'mod' => array('dir' => 'mod')
+function install_path($moodle_app, $plugin_type, $plugin_name) {
+    $dirs = array(
+        'tinymce' => 'lib/editor/tinymce/plugins',
+        'tiny' => 'lib/editor/tiny/plugins',
+        'workshopallocation' => 'mod/workshop/allocation',
+        'atto' => 'lib/editor/atto/plugins',
+        'availability' => 'availability/condition',
+        'assignsubmission' => 'mod/assign/submission',
+        'logstore' => 'admin/tool/log/store',
+        'quizaccess' => 'mod/quiz/accessrule',
+        'assignment' => 'mod/assignment/type',
+        'assignfeedback' => 'mod/assign/feedback',
+        'gradingform' => 'grade/grading/form',
+        'qbehaviour' => 'question/behaviour',
+        'profilefield' => 'user/profile/field',
+        'workshopform' => 'mod/workshop/form',
+        'workshopeval' => 'mod/workshop/eval',
+        'scormreport' => 'mod/scorm/report',
+        'fileconverter' => 'files/converter',
+        'qformat' => 'question/format',
+        'quiz' => 'mod/quiz/report',
+        'ltiservice' => 'mod/lti/service',
+        'datapreset' => 'mod/data/preset',
+        'ltisource' => 'mod/lti/source',
+        'datafield' => 'mod/data/field',
+        'message' => 'message/output',
+        'booktool' => 'mod/book/tool',
+        'calendartype' => 'calendar/type',
+        'format' => 'course/format',
+        'coursereport' => 'course/report',
+        'mlbackend' => 'lib/mlbackend',
+        'search' => 'search/engine',
+        'antivirus' => 'lib/antivirus',
+        'qtype' => 'question/type',
+        'media' => 'media/player',
+        'cachestore' => 'cache/stores',
+        'gradereport' => 'grade/report',
+        'gradeimport' => 'grade/import',
+        'gradeexport' => 'grade/export',
+        'mnetservice' => 'mnet/service',
+        'cachelock' => 'cache/locks',
+        'plagiarism' => 'plagiarism',
+        'repository' => 'repository',
+        'tool' => 'admin/tool',
+        'editor' => 'lib/editor',
+        'dataformat' => 'dataformat',
+        'webservice' => 'webservice',
+        'portfolio' => 'portfolio',
+        'filter' => 'filter',
+        'report' => 'report',
+        'block' => 'blocks',
+        'local' => 'local',
+        'enrol' => 'enrol',
+        'theme' => 'theme',
+        'auth' => 'auth',
+        'mod' => 'mod',
+        'aiplacement' => 'ai/placement',
+        'aiprovider' => 'ai/provider',
+        'communication' => 'communication/provider',
+        'customfield' => 'customfield/field',
+        'gradepenalty' => 'grade/penalty',
+        'qbank' => 'question/bank',
+        'contenttype' => 'contentbank/contenttype',
+        'h5plib' => 'h5p/h5plib',
+        'paygw' => 'payment/gateway',
+        'smsgateway' => 'sms/gateway',
     );
 
-    if (array_key_exists($plugin_type, $install_path_directory_from_type)) {
-        return $MOODLE_APP . '/' . $install_path_directory_from_type[$plugin_type]['dir'] .'/'. $plugin_name;
+    $components_file = $moodle_app . '/lib/components.json';
+    if (is_readable($components_file)) {
+        $components = json_decode(file_get_contents($components_file), true);
+        foreach (array('plugintypes', 'deprecatedplugintypes') as $key) {
+            if (!empty($components[$key]) && is_array($components[$key])) {
+                foreach ($components[$key] as $type => $dir) {
+                    if (is_string($dir) && $dir !== '') {
+                        $dirs[$type] = str_replace('\\/', '/', $dir);
+                    }
+                }
+            }
+        }
+    }
+
+    if (array_key_exists($plugin_type, $dirs)) {
+        return $moodle_app . '/' . $dirs[$plugin_type] . '/' . $plugin_name;
     }
 
     file_put_contents("php://stderr", "ERROR: " . $plugin_type . " is not a valid type!" . "\n");
     exit(1);
 }
 
-#curl
+function emit($key, $value) {
+    echo $key . '=' . str_replace(array("\n", "\r"), '', (string) $value) . "\n";
+}
+
+function http_get($url, $user_agent, $accept = 'application/json') {
+    $curl = curl_init();
+    curl_setopt_array($curl, array(
+        CURLOPT_URL => $url,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT => $user_agent,
+        CURLOPT_HTTPHEADER => array('Accept: ' . $accept),
+        CURLOPT_TIMEOUT => 60,
+    ));
+    $body = curl_exec($curl);
+    $errno = curl_errno($curl);
+    $code = (int) curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    $error = curl_error($curl);
+    curl_close($curl);
+    return array($body, $code, $errno, $error);
+}
+
 $params = array(
     'plugin' => $MOODLE_PLUGIN_COMPONENT_NAME,
-    'minversion' => "0",
+    'minversion' => '0',
     'format' => 'json',
     'branch' => "$MOODLE_RELEASE",
 );
 $url = $MOODLE_API_PLUGIN_INFO . '?' . http_build_query($params);
-$defaults = array(
-    CURLOPT_URL => $url,
-    CURLOPT_SSL_VERIFYHOST => 2,
-    CURLOPT_SSL_VERIFYPEER => true,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HTTPHEADER => array(
-        'Accept: application/json',
-        'User-Agent: Mozilla/5.0 (compatible; GenericBot/1.0;)'
-    ),
-);
+list($raw, $http_code, $errno, $error) = http_get($url, $INSTALLER_USER_AGENT);
 
-$curl = curl_init();
-curl_setopt_array($curl, $defaults);
-$response = json_decode(curl_exec($curl));
-if ($errno = curl_errno($curl)) {
-    $error_message = curl_strerror($errno);
-    file_put_contents("php://stderr", "ERROR: curl errno ({$errno}):\n {$error_message}");
+if ($errno) {
+    file_put_contents("php://stderr", "ERROR: curl errno ({$errno}): {$error}\n");
     exit(1);
 }
-curl_close($curl);
-if ($response) {
-    $moodle_plugin_info = $response->pluginfo;
-    $moodle_plugin_type = explode('_', $MOODLE_PLUGIN_COMPONENT_NAME)[0];
-    $moodle_plugin_name = substr_replace($MOODLE_PLUGIN_COMPONENT_NAME, '', 0, strlen($moodle_plugin_type . '_'));
-    $moodle_plugin_info_latest_download_url = $moodle_plugin_info->version->downloadurl;
-    $moodle_plugin_info_latest_download_md5 = $moodle_plugin_info->version->downloadmd5;
-    $moodle_plugin_info_maturity = (int) $moodle_plugin_info->version->maturity;
-    $moodle_plugin_info_install_path = install_path($moodle_plugin_type, $moodle_plugin_name);
-    $supported_moodle_release = $moodle_plugin_info->version->supportedmoodles;
-    if (!$to_be_installed) {
-        if (in_array($MOODLE_RELEASE, array_column($supported_moodle_release, 'release'))) {
-            $to_be_installed = true;
-        } else {
-            file_put_contents("php://stderr", "ERROR: Versions available for [$MOODLE_PLUGIN_COMPONENT_NAME] are not compatible with moodle release: " . $MOODLE_RELEASE . "\n");
-            exit(1);
-        }
-        if ($moodle_plugin_info_maturity >= $MOODLE_PLUGIN_MATURITY) {
-            $to_be_installed = true;
-        } else {
-            file_put_contents("php://stderr", "ERROR: Maturity level of version available for [$MOODLE_PLUGIN_COMPONENT_NAME] is below: " . $MOODLE_PLUGIN_MATURITY . "\n");
-            exit(1);
-        }
-    }
-    // output plugin url, md5 and destination directory
-    if ($to_be_installed) {
-        echo "\"$moodle_plugin_info_latest_download_url\" \"$moodle_plugin_info_latest_download_md5\" \"$moodle_plugin_info_install_path\"";
-        exit(0);
+if ($http_code !== 200) {
+    file_put_contents("php://stderr", "ERROR: Plugin info request failed for [{$MOODLE_PLUGIN_COMPONENT_NAME}] (HTTP {$http_code}).\n");
+    exit(1);
+}
+
+$response = json_decode($raw);
+if (!is_object($response) || (isset($response->status) && $response->status !== 'OK') || empty($response->pluginfo)) {
+    file_put_contents("php://stderr", "ERROR: No plugin info for [{$MOODLE_PLUGIN_COMPONENT_NAME}].\n");
+    exit(1);
+}
+
+$pluginfo = $response->pluginfo;
+$version = isset($pluginfo->version) ? $pluginfo->version : null;
+if (!is_object($version)) {
+    file_put_contents("php://stderr", "ERROR: No plugin version info for [{$MOODLE_PLUGIN_COMPONENT_NAME}].\n");
+    exit(1);
+}
+
+$parts = explode('_', $MOODLE_PLUGIN_COMPONENT_NAME, 2);
+$moodle_plugin_type = $parts[0];
+$moodle_plugin_name = isset($parts[1]) ? $parts[1] : '';
+$install_path = install_path($MOODLE_APP, $moodle_plugin_type, $moodle_plugin_name);
+
+$downloadurl = isset($version->downloadurl) ? (string) $version->downloadurl : '';
+$downloadmd5 = isset($version->downloadmd5) ? (string) $version->downloadmd5 : '';
+$source = '';
+if (!empty($version->vcsrepositoryurl)) {
+    $source = (string) $version->vcsrepositoryurl;
+} elseif (!empty($pluginfo->source)) {
+    $source = (string) $pluginfo->source;
+}
+$vcstag = '';
+if (!empty($version->vcstag)) {
+    $vcstag = (string) $version->vcstag;
+} elseif (!empty($version->vcsbranch)) {
+    $vcstag = (string) $version->vcsbranch;
+}
+
+# Prefer the unauthenticated Marketplace download API over login-walled HTML links.
+if ($downloadurl !== '' && preg_match('#/plugins/[0-9]+/versions/[0-9]+/download#', $downloadurl)) {
+    if (!empty($version->version)) {
+        $downloadurl = 'https://marketplace.moodle.com/api/plugins/' . rawurlencode($MOODLE_PLUGIN_COMPONENT_NAME) . '/versions/' . rawurlencode((string) $version->version) . '/download';
     }
 }
-file_put_contents("php://stderr", "ERROR: No plugin info for [$MOODLE_PLUGIN_COMPONENT_NAME].\n");
-exit(1);
+
+$maturity = isset($version->maturity) ? (int) $version->maturity : 0;
+$supported = isset($version->supportedmoodles) && is_array($version->supportedmoodles) ? $version->supportedmoodles : array();
+
+if (!$to_be_installed) {
+    $releases = array();
+    foreach ($supported as $item) {
+        if (is_object($item) && isset($item->release)) {
+            $releases[] = (string) $item->release;
+        } elseif (is_array($item) && isset($item['release'])) {
+            $releases[] = (string) $item['release'];
+        }
+    }
+    if (!in_array($MOODLE_RELEASE, $releases, true)) {
+        file_put_contents("php://stderr", "ERROR: Versions available for [{$MOODLE_PLUGIN_COMPONENT_NAME}] are not compatible with moodle release: " . $MOODLE_RELEASE . "\n");
+        exit(1);
+    }
+    if ($maturity < $MOODLE_PLUGIN_MATURITY) {
+        file_put_contents("php://stderr", "ERROR: Maturity level of version available for [{$MOODLE_PLUGIN_COMPONENT_NAME}] is below: " . $MOODLE_PLUGIN_MATURITY . "\n");
+        exit(1);
+    }
+}
+
+emit('downloadurl', $downloadurl);
+emit('downloadmd5', $downloadmd5);
+emit('installpath', $install_path);
+emit('source', $source);
+emit('vcstag', $vcstag);
+exit(0);
 ?>
 CODE
 }
@@ -221,6 +558,7 @@ moodle_plugin_comma_list=`echo ${moodle_plugin_list}|awk -v OFS="," '$1=$1'`
 IFS=',' read -r -a script_moodle_plugin_list <<< "${moodle_plugin_comma_list// /}"
 export script_moodle_plugin_list
 export script_moodle_app=${MOODLE_APP:-/var/www/html}
+export MOODLE_APP=${MOODLE_APP:-/var/www/html}
 export script_moodle_api_plugin_list=${MOODLE_API_PLUGIN_INFO:-https://download.moodle.org/api/1.3/pluginfo.php}
 export script_moodle_plugin_force=
 export script_moodle_plugin_maturity=0
