@@ -96,9 +96,7 @@ install_plugin() {
 
     if [[ "${component}" =~ ^https:// ]]; then
         url="${component}"
-        plugin_component="$(basename "${url}" .zip)"
     else
-        plugin_component="${component}"
         marketplace_url="https://marketplace.moodle.com/plugins/${component}"
         echo "Resolving ${component} from Moodle Marketplace..."
         download_path=$(curl -fsSL \
@@ -138,13 +136,12 @@ install_plugin() {
         # Direct URLs may use an archive directory name rather than the Moodle
         # component name. Read the component declaration from version.php.
         if [ -f "${extract}/${plugin_base_dirname}/version.php" ]; then
-            actual_component=$(grep -E '^\$plugin->component[[:space:]]*=' "${extract}/${plugin_base_dirname}/version.php" | head -n 1 | sed -E "s/.*=['\"]([^'\"]+)['\"].*/\1/" || true)
-            if [ -n "${actual_component}" ]; then
-                component="${actual_component}"
-            else
+            actual_component=$(awk -F"'" '/^\$plugin->component[[:space:]]*=/{print $2; exit}' "${extract}/${plugin_base_dirname}/version.php")
+            if [ -z "${actual_component}" ]; then
                 echo "ERROR: Unable to determine plugin component from version.php." >&2
                 exit 1
             fi
+            component="${actual_component}"
         else
             echo "ERROR: Plugin ZIP does not contain version.php." >&2
             exit 1
@@ -173,10 +170,6 @@ install_plugin() {
 if [ -z "${PLUGIN_LIST}" ]; then
     usage
     exit 1
-fi
-
-if [ -z "${MOODLE_RELEASE}" ] && [ -f "${MOODLE_APP}/version.php" ]; then
-    MOODLE_RELEASE=$(php -r 'define("MOODLE_INTERNAL", true); define("MATURITY_STABLE", 200); require $argv[1]; preg_match("/^([0-9]+)\\.([0-9]+)/", $release, $m); echo $m[0] ?? "";' "${MOODLE_APP}/version.php")
 fi
 
 # Convert both the historical space-separated and comma-separated formats.
