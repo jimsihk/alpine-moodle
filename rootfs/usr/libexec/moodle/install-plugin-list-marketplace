@@ -117,11 +117,13 @@ install_plugin() {
     zip="${tmp_parent}/${component##*/}.zip"
     echo "Downloading plugin zip: ${component}"
     echo "Source: ${url}"
-    curl -fsSL -L --retry 3 --retry-all-errors \
-        -H 'Accept: application/zip, application/octet-stream' \
-        -H 'User-Agent: alpine-moodle-plugin-installer/1.0' \
-        ${referer:+-e "${referer}"} \
-        "${url}" -o "${zip}"
+    curl_args=(-fsSL -L --retry 3 --retry-all-errors
+        -H 'Accept: application/zip, application/octet-stream'
+        -H 'User-Agent: alpine-moodle-plugin-installer/1.0')
+    if [ -n "${referer}" ]; then
+        curl_args+=(-e "${referer}")
+    fi
+    curl "${curl_args[@]}" "${url}" -o "${zip}"
 
     if ! unzip -tq "${zip}" >/dev/null; then
         echo "ERROR: Downloaded file is not a valid Moodle plugin ZIP: ${url}" >&2
