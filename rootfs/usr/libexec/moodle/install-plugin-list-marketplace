@@ -134,11 +134,11 @@ install_plugin() {
         exit 1
     fi
 
-    if [ "${component}" != "${plugin_base_dirname}" ]; then
-        # Marketplace packages normally use the component name. For direct URLs,
-        # use version.php to validate the component before installation.
+    if [[ "${component}" =~ ^https:// ]]; then
+        # Direct URLs may use an archive directory name rather than the Moodle
+        # component name. Read the component declaration from version.php.
         if [ -f "${extract}/${plugin_base_dirname}/version.php" ]; then
-            actual_component=$(grep -E "^\\$plugin->component[[:space:]]*=" "${extract}/${plugin_base_dirname}/version.php" | sed -E "s/.*=['\\\"]([^'\\\"]+).*/\\1/" || true)
+            actual_component=$(grep -E '^\$plugin->component[[:space:]]*=' "${extract}/${plugin_base_dirname}/version.php" | head -n 1 | sed -E "s/.*=['\"]([^'\"]+)['\"].*/\1/" || true)
             if [ -n "${actual_component}" ]; then
                 component="${actual_component}"
             else
@@ -149,6 +149,9 @@ install_plugin() {
             echo "ERROR: Plugin ZIP does not contain version.php." >&2
             exit 1
         fi
+    elif [ "${component}" != "${plugin_base_dirname}" ]; then
+        echo "ERROR: Marketplace package directory does not match component [${component}]." >&2
+        exit 1
     fi
 
     plugin_type="${component%%_*}"
