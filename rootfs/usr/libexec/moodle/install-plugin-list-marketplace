@@ -85,14 +85,8 @@ resolve_source_archive() {
             # Marketplace pages can expose GitLab screenshots or raw files rather
             # than the repository URL. Resolve the component through GitLab's
             # public project search before falling back to the extracted URL.
-            search_results=$(curl -fsSL "https://${project_host}/api/v4/projects?search=${component}&search_namespaces=true&simple=true" || true)
-            project_id=$(printf '%s' "${search_results}" | grep -oE '"id":[0-9]+' | head -n 1 | cut -d: -f2 || true)
-            if [ -n "${project_id}" ]; then
-                project_details=$(curl -fsSL "https://${project_host}/api/v4/projects/${project_id}" || true)
-                repository_url=$(printf '%s' "${project_details}" | grep -oE '"web_url":"https?://[^" ]+' | sed 's/^"web_url":"//' | head -n 1 || true)
-            else
-                repository_url=""
-            fi
+            search_results=$(curl -fsSL "https://${project_host}/api/v4/projects?search=moodle-${component}&search_namespaces=true&simple=true" || true)
+            repository_url=$(printf '%s' "${search_results}" | grep -oE '"web_url":"https?://[^" ]+' | sed 's/^"web_url":"//' | head -n 1 || true)
             if [ -n "${repository_url}" ]; then
                 source_url="${repository_url}"
                 source_url="${source_url%%\?*}"
