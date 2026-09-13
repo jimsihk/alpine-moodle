@@ -66,7 +66,7 @@ jobs:
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
-          export ARG_MOODLE_PLUGIN_LIST=report_benchmark
+          export ARG_MOODLE_PLUGIN_LIST=block_completion_levels
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
 
@@ -131,7 +131,7 @@ jobs:
           echo '###############################'
           echo "Test - build with plugin list and installing Moodle..."
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-slim
-          export ARG_MOODLE_PLUGIN_LIST=report_benchmark
+          export ARG_MOODLE_PLUGIN_LIST=block_completion_levels
           export ARG_ENABLE_GIT_CLONE=false
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans

@@ -1,23 +1,21 @@
 #!/bin/sh
 #
 # Moodle code plugin installation wrapper script
-# Description: The script will execute install-plugin-list script with some custom logic
+# Description: Install additional plugins using the current Moodle Marketplace
+#              compatible installer. Component-name lookup via the retired
+#              download.moodle.org Plugins API is no longer used.
 #
 
 UTL_PATH=/usr/libexec/moodle
 
-# Install additional plugins (a space/comma separated argument), if any
-# Reference: https://github.com/krestomatio/container_builder/tree/master/moodle#moodle-plugins
 if [ -n "${MOODLE_PLUGIN_LIST}" ]; then
   if [ -n "${ALLOW_INCOMPATIBLE_PLUGIN}" ] && [ "${ALLOW_INCOMPATIBLE_PLUGIN}" = 'true' ]; then
-    "$UTL_PATH"/install-plugin-list -f -p "${MOODLE_PLUGIN_LIST}"
-    # shellcheck disable=SC2181
+    "$UTL_PATH"/install-plugin-list-marketplace -p "${MOODLE_PLUGIN_LIST}"
     if [ $? -ne 0 ]; then
       exit 2
     fi
   else
-    "$UTL_PATH"/install-plugin-list -p "${MOODLE_PLUGIN_LIST}"
-    # shellcheck disable=SC2181
+    "$UTL_PATH"/install-plugin-list-marketplace -p "${MOODLE_PLUGIN_LIST}"
     if [ $? -ne 0 ]; then
       exit 3
     fi

@@ -1,0 +1,181 @@
+#!/bin/bash -eu
+#
+# Install Moodle plugins using Moodle Marketplace when the legacy Plugins API
+# is unavailable. Plugin entries are Moodle component names or HTTPS ZIP URLs.
+#
+MOODLE_APP=${MOODLE_APP:-/var/www/html}
+MOODLE_RELEASE=${MOODLE_RELEASE:-}
+PLUGIN_LIST=${MOODLE_PLUGIN_LIST:-}
+
+usage() {
+    cat 1>&2 <<EOF
+Install Moodle plugin(s) from Moodle Marketplace.
+
+ENVIRONMENT VARS:
+MOODLE_APP       path to Moodle code (default /var/www/html)
+MOODLE_RELEASE   Moodle release
+MOODLE_PLUGIN_LIST plugin component names or HTTPS ZIP URLs, comma/space separated
+EOF
+}
+
+plugin_type_dir() {
+    case "$1" in
+        tinymce) echo 'lib/editor/tinymce/plugins' ;; tiny) echo 'lib/editor/tiny/plugins' ;;
+        workshopallocation) echo 'mod/workshop/allocation' ;; atto) echo 'lib/editor/atto/plugins' ;;
+        availability) echo 'availability/condition' ;; assignsubmission) echo 'mod/assign/submission' ;;
+        logstore) echo 'admin/tool/log/store' ;; quizaccess) echo 'mod/quiz/accessrule' ;;
+        assignment) echo 'mod/assignment/type' ;; assignfeedback) echo 'mod/assign/feedback' ;;
+        gradingform) echo 'grade/grading/form' ;; qbehaviour) echo 'question/behaviour' ;;
+        profilefield) echo 'user/profile/field' ;; workshopform) echo 'mod/workshop/form' ;;
+        workshopeval) echo 'mod/workshop/eval' ;; scormreport) echo 'mod/scorm/report' ;;
+        fileconverter) echo 'files/converter' ;; qformat) echo 'question/format' ;;
+        quiz) echo 'mod/quiz/report' ;; ltiservice) echo 'mod/lti/service' ;;
+        datapreset) echo 'mod/data/preset' ;; ltisource) echo 'mod/lti/source' ;;
+        datafield) echo 'mod/data/field' ;; message) echo 'message/output' ;;
+        booktool) echo 'mod/book/tool' ;; calendartype) echo 'calendar/type' ;;
+        format) echo 'course/format' ;; coursereport) echo 'course/report' ;;
+        mlbackend) echo 'lib/mlbackend' ;; search) echo 'search/engine' ;;
+        antivirus) echo 'lib/antivirus' ;; qtype) echo 'question/type' ;;
+        media) echo 'media/player' ;; cachestore) echo 'cache/stores' ;;
+        gradereport) echo 'grade/report' ;; gradeimport) echo 'grade/import' ;;
+        gradeexport) echo 'grade/export' ;; mnetservice) echo 'mnet/service' ;;
+        cachelock) echo 'cache/locks' ;; plagiarism) echo 'plagiarism' ;;
+        repository) echo 'repository' ;; tool) echo 'admin/tool' ;; editor) echo 'lib/editor' ;;
+        dataformat) echo 'dataformat' ;; webservice) echo 'webservice' ;; portfolio) echo 'portfolio' ;;
+        filter) echo 'filter' ;; report) echo 'report' ;; block) echo 'blocks' ;; local) echo 'local' ;;
+        enrol) echo 'enrol' ;; theme) echo 'theme' ;; auth) echo 'auth' ;; mod) echo 'mod' ;;
+        *) echo "ERROR: Unsupported Moodle plugin type: $1" >&2; return 1 ;;
+    esac
+}
+
+resolve_source_archive() {
+    component="$1"
+    marketplace_url="$2"
+    page=$(curl -fsSL -H 'Accept: text/html' -H 'User-Agent: alpine-moodle-plugin-installer/1.0' "${marketplace_url}")
+    source_url=$(printf '%s' "${page}" | grep -oE 'https?://[^"<> ]+' | sed 's/&amp;/\&/g' | grep -E '(github\.com|gitlab\.com|gricad-gitlab\.)' | grep -v 'marketplace\.moodle\.com' | head -n 1 || true)
+    if [ -z "${source_url}" ]; then
+        legacy_url="https://moodle.org/plugins/${component}"
+        legacy_page=$(curl -fsSL -H 'Accept: text/html' -H 'User-Agent: alpine-moodle-plugin-installer/1.0' "${legacy_url}" || true)
+        source_url=$(printf '%s' "${legacy_page}" | grep -oE 'https?://[^"<> ]+' | sed 's/&amp;/\&/g' | grep -E '(github\.com|gitlab\.com|gricad-gitlab\.)' | grep -v 'moodle\.org' | head -n 1 || true)
+    fi
+    if [ -z "${source_url}" ]; then
+        echo "ERROR: Unable to determine public source-control URL for [${component}]." >&2
+        return 1
+    fi
+    source_url="${source_url%%\?*}"
+    source_url="${source_url%%#*}"
+    source_url="${source_url%/}"
+    source_url="${source_url%.git}"
+    case "${source_url}" in
+        https://github.com/*/*)
+            repo_path="${source_url#https://github.com/}"
+            owner="${repo_path%%/*}"
+            repo="${repo_path#*/}"
+            default_branch=$(curl -fsSL "https://api.github.com/repos/${owner}/${repo}" | grep -m1 '"default_branch"' | cut -d '"' -f4 || true)
+            if [ -z "${default_branch}" ]; then
+                echo "ERROR: Unable to determine default branch for [${source_url}]." >&2
+                return 1
+            fi
+            printf 'https://github.com/%s/%s/archive/refs/heads/%s.zip\n' "${owner}" "${repo}" "${default_branch}"
+            ;;
+        *)
+            project_path="${source_url#https://}"
+            project_host="${project_path%%/*}"
+            project_path="${project_path#*/}"
+            # Marketplace pages can expose GitLab screenshots or raw files rather
+            # than the repository URL. Resolve the component through GitLab's
+            # public project search before falling back to the extracted URL.
+            search_results=$(curl -fsSL "https://${project_host}/api/v4/projects?search=moodle-${component}&search_namespaces=true&simple=true" || true)
+            repository_url=$(printf '%s' "${search_results}" | tr '}' '\n' | grep -F "\"path\":\"moodle-${component}\"" | grep -oE '"web_url":"https?://[^" ]+' | sed 's/^"web_url":"//' | head -n 1 || true)
+            if [ -n "${repository_url}" ]; then
+                source_url="${repository_url}"
+                source_url="${source_url%%\?*}"
+                source_url="${source_url%%#*}"
+                source_url="${source_url%/}"
+                project_path="${source_url#https://}"
+                project_host="${project_path%%/*}"
+                project_path="${project_path#*/}"
+            else
+                case "${project_path}" in
+                    */-/*) project_path="${project_path%%/-/*}" ;;
+                esac
+            fi
+            encoded_path=$(printf '%s' "${project_path}" | sed 's|/|%2F|g')
+            printf 'https://%s/api/v4/projects/%s/repository/archive.zip\n' "${project_host}" "${encoded_path}"
+            ;;
+    esac
+}
+
+install_plugin() {
+    component="$1"
+    echo "Installing plugin: ${component}..."
+    tmp_parent="/tmp/moodle-plugins/${component}"
+    rm -rf "${tmp_parent}" && mkdir -p "${tmp_parent}"
+    if [[ "${component}" =~ ^https:// ]]; then
+        url="${component}"; referer=""; marketplace_component=false
+    else
+        marketplace_url="https://marketplace.moodle.com/plugins/${component}"
+        echo "Resolving ${component} from Moodle Marketplace..."
+        download_path=$(curl -fsSL -H 'Accept: text/html' -H 'User-Agent: alpine-moodle-plugin-installer/1.0' "${marketplace_url}" | grep -oE '/plugins/[0-9]+/versions/[0-9]+/download' | head -n 1 || true)
+        if [ -z "${download_path}" ]; then
+            echo "ERROR: No downloadable version found for [${component}] on Moodle Marketplace." >&2
+            exit 1
+        fi
+        url="https://marketplace.moodle.com${download_path}"; referer="${marketplace_url}"; marketplace_component=true
+    fi
+    zip="${tmp_parent}/${component##*/}.zip"
+    echo "Downloading plugin zip: ${component}"
+    echo "Source: ${url}"
+    curl_args=(-fsSL -L --retry 3 --retry-all-errors -H 'Accept: application/zip, application/octet-stream' -H 'User-Agent: alpine-moodle-plugin-installer/1.0')
+    if [ -n "${referer}" ]; then curl_args+=(-e "${referer}"); fi
+    curl "${curl_args[@]}" "${url}" -o "${zip}" || download_failed=true
+    if [ "${marketplace_component}" = true ] && { [ "${download_failed:-false}" = true ] || ! unzip -tq "${zip}" >/dev/null 2>&1; }; then
+        echo "Marketplace download requires authentication; falling back to the plugin's public source repository."
+        url=$(resolve_source_archive "${component}" "${marketplace_url}")
+        echo "Source: ${url}"
+        rm -f "${zip}"
+        curl_args=(-fsSL -L --retry 3 --retry-all-errors -H 'Accept: application/zip, application/octet-stream' -H 'User-Agent: alpine-moodle-plugin-installer/1.0')
+        curl "${curl_args[@]}" "${url}" -o "${zip}"
+    fi
+    if ! unzip -tq "${zip}" >/dev/null; then
+        echo "ERROR: Downloaded file is not a valid Moodle plugin ZIP: ${url}" >&2
+        exit 1
+    fi
+    extract="${tmp_parent}/extract"
+    mkdir -p "${extract}" && unzip -q "${zip}" -d "${extract}"
+    plugin_base_dirname=$(basename "$(find "${extract}" -mindepth 1 -maxdepth 1 -type d | head -n 1)")
+    if [ -z "${plugin_base_dirname}" ]; then
+        echo "ERROR: Plugin ZIP contains no top-level directory: ${url}" >&2
+        exit 1
+    fi
+    if [[ "${component}" =~ ^https:// ]] || [ "${component}" != "${plugin_base_dirname}" ]; then
+        if [ -f "${extract}/${plugin_base_dirname}/version.php" ]; then
+            actual_component=$(awk -F"'" '/^\$plugin->component[[:space:]]*=/{print $2; exit}' "${extract}/${plugin_base_dirname}/version.php")
+            if [[ "${component}" =~ ^https:// ]]; then
+                [ -n "${actual_component}" ] || { echo "ERROR: Unable to determine plugin component from version.php." >&2; exit 1; }
+                component="${actual_component}"
+            elif [ "${actual_component}" != "${component}" ]; then
+                echo "ERROR: Plugin ZIP component [${actual_component}] does not match requested component [${component}]." >&2
+                exit 1
+            fi
+        else
+            echo "ERROR: Plugin ZIP does not contain version.php." >&2
+            exit 1
+        fi
+    fi
+    plugin_type="${component%%_*}"
+    plugin_name="${component#*_}"
+    destination="${MOODLE_APP}/$(plugin_type_dir "${plugin_type}")/${plugin_name}"
+    if [ -d "${destination}" ]; then
+        echo "Destination directory already exists: ${destination}"
+        backup="${tmp_parent}/backup"; mkdir -p "${backup}"; mv "${destination}" "${backup}/"
+    fi
+    mkdir -p "$(dirname "${destination}")"
+    echo "Installing to: ${destination}"
+    mv "${extract}/${plugin_base_dirname}" "${destination}"
+}
+
+if [ -z "${PLUGIN_LIST}" ]; then usage; exit 1; fi
+PLUGIN_LIST=$(echo "${PLUGIN_LIST}" | tr ',' ' ')
+for plugin in ${PLUGIN_LIST}; do install_plugin "${plugin}"; done
+rm -rf /tmp/moodle-plugins
