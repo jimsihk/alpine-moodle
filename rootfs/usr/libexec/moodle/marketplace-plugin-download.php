@@ -93,7 +93,7 @@ function normaliseVersions(array $data): array {
 }
 
 try {
-    $url = $apiBase . '/plugins/' . rawurlencode($component) . '/versions';
+    $url = $apiBase . '/plugins/' . rawurlencode($component);
     [, $body] = request($url, $token);
     $data = json_decode((string)$body, true, 512, JSON_THROW_ON_ERROR);
     $versions = normaliseVersions($data);
@@ -122,7 +122,7 @@ try {
 
         $build = (int)$build;
         if ($selected === null || $build > $selected['build']) {
-            $selected = ['build' => $build];
+            $selected = ['build' => $build, 'id' => $version['id'] ?? null];
         }
     }
 
@@ -131,7 +131,7 @@ try {
     }
 
     $downloadUrl = $apiBase . '/plugins/' . rawurlencode($component)
-        . '/versions/' . $selected['build'] . '/download';
+        . '/versions/' . rawurlencode((string)($selected['id'] ?? $selected['build'])) . '/download';
     request($downloadUrl, $token, $outputZip);
 
     if (!is_file($outputZip) || filesize($outputZip) === 0) {
