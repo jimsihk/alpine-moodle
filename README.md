@@ -152,6 +152,34 @@ If a cluster of Moodle containers are deployed for HA (e.g. on Kubernetes), it i
 ## Custom builds
 ### Moodle plugins
 
+#### Moodle Marketplace authentication for paid plugins
+
+The plugin installer uses the Moodle Marketplace API. Free plugins can be downloaded without authentication. For paid plugins, provide the optional `MOODLE_MARKETPLACE_TOKEN` as a Docker BuildKit secret. The secret is mounted only for the build step that downloads plugins; it is not stored in the Dockerfile, image layers, environment, or source code.
+
+For a main image build:
+
+```bash
+docker buildx build . -t my_moodle_image:my_tag \
+    --build-arg ARG_MOODLE_PLUGIN_LIST='mod_attendance,mod_checklist' \
+    --secret id=MOODLE_MARKETPLACE_TOKEN,env=MOODLE_MARKETPLACE_TOKEN
+```
+
+For a custom plugin image, use the same secret on the `RUN` that invokes `/usr/libexec/moodle/download-moodle-plugin`:
+
+```dockerfile
+# syntax=docker/dockerfile:1
+FROM quay.io/jimsihk/alpine-moodle:latest
+
+ARG ARG_MOODLE_PLUGIN_LIST=''
+ENV MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
+
+RUN --mount=type=secret,id=MOODLE_MARKETPLACE_TOKEN,required=false \
+    /usr/libexec/moodle/download-moodle-plugin && \
+    rm -rf /tmp/moodle-plugins
+```
+
+If the secret is not supplied, the installer sends no Authorization header and continues to support public/free Marketplace downloads.
+
 #### `ARG_MOODLE_PLUGIN_LIST`: define the list of plugins
 - For installing plugins while building the main Dockerfile (slower), use `ARG_MOODLE_PLUGIN_LIST`:
 ```
