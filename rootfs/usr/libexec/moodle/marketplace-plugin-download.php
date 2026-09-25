@@ -102,17 +102,20 @@ try {
     [, $html] = request($versionsUrl, $token);
     $selected = null;
 
-    // Parse each version entry independently. The Marketplace page contains many
-    // versions, so looking for a Moodle release within a large window around a build
-    // number can accidentally associate a newer, incompatible version with the release.
-    $entryPattern = '/Version build number[^0-9]*(\\d{10})(.*?)(?=Version build number|\\z)/is';
-    if (!preg_match_all($entryPattern, (string)$html, $entryMatches, PREG_SET_ORDER)) {
+    // Convert the versions page to plain text first. Each version entry has
+    // "Supported Moodle versions" followed by its own "Version build number".
+    // Pairing these fields avoids matching compatibility text from another version.
+    $text = html_entity_decode(strip_tags((string)$html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $text = preg_replace('/[[:space:]]+/', ' ', $text) ?? $text;
+
+    $entryPattern = '/Supported Moodle versions:\s*(.*?)\s+Repository URL.*?Version build number:\s*(\d{10})/i';
+    if (!preg_match_all($entryPattern, $text, $entryMatches, PREG_SET_ORDER)) {
         throw new RuntimeException("No Marketplace versions found for {$component}");
     }
 
     foreach ($entryMatches as $entry) {
-        $build = (int)$entry[1];
-        $entryHtml = $entry[2];
+        $supportedMoodle = trim($entry[1]);
+        $build = (int)$entry[2];
 
         if ($build <= 0) {
             continue;
@@ -124,14 +127,12 @@ try {
             continue;
         }
 
-        // Only accept a build when its own Marketplace entry explicitly lists
-        // the requested Moodle release.
-        if (preg_match('/Moodle\\s+' . preg_quote($moodleRelease, '/') . '\\b/i', $entryHtml)
+        // The compatibility field belongs to this exact Marketplace version.
+        if (preg_match('/(?:^|[^0-9])' . preg_quote($moodleRelease, '/') . '(?:$|[^0-9])/i', $supportedMoodle)
             && ($selected === null || $build > $selected['build'])) {
             $selected = ['build' => $build];
         }
     }
-
     if ($selected === null) {
         throw new RuntimeException("No Marketplace version of {$component} is compatible with Moodle {$moodleRelease}");
     }
