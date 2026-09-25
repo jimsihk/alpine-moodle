@@ -93,36 +93,35 @@ function normaliseVersions(array $data): array {
 }
 
 try {
-    $url = $apiBase . '/plugins/' . rawurlencode($component);
-    [, $body] = request($url, $token);
-    $data = json_decode((string)$body, true, 512, JSON_THROW_ON_ERROR);
-    $versions = normaliseVersions($data);
+    // Marketplace exposes version metadata on the plugin versions page. The download
+    // itself is performed through the documented Marketplace API endpoint.
+    $versionsUrl = 'https://marketplace.moodle.com/plugins/' . rawurlencode($component) . '/versions?show=all';
+    [, $html] = request($versionsUrl, $token);
     $selected = null;
 
-    foreach ($versions as $version) {
-        if (!is_array($version)) {
-            continue;
-        }
-        $build = $version['version'] ?? $version['versionBuild'] ?? $version['build'] ?? null;
-        if (!is_numeric($build)) {
-            continue;
-        }
+    // Each version entry contains a build number and its supported Moodle releases.
+    // Prefer the newest version that explicitly supports the requested Moodle release.
+    if (!preg_match_all('/(?:Version build number|versionBuild)[^0-9]{0,200}(\\d{10})/i', (string)$html, $buildMatches)) {
+        throw new RuntimeException("No Marketplace versions found for {$component}");
+    }
 
-        $supported = $version['moodleVersions']
-            ?? $version['supportedMoodleVersions']
-            ?? $version['supportedVersions']
-            ?? [];
-        $supported = is_array($supported) ? array_map('strval', $supported) : [];
-        $compatible = in_array($moodleRelease, $supported, true);
-        $maturity = maturityScore($version['maturity'] ?? 0);
-
-        if (!$force && (!$compatible || $maturity < $minimumMaturity)) {
-            continue;
-        }
-
+    foreach ($buildMatches[1] as $build) {
         $build = (int)$build;
-        if ($selected === null || $build > $selected['build']) {
-            $selected = ['build' => $build, 'id' => $version['id'] ?? null];
+        if ($build <= 0) {
+            continue;
+        }
+        if ($force) {
+            if ($selected === null || $build > $selected['build']) {
+                $selected = ['build' => $build];
+            }
+            continue;
+        }
+
+        // The versions page is filtered/annotated with the supported Moodle release.
+        // Require the release to occur in the same version entry.
+        $pattern = '/.{0,1200}' . preg_quote((string)$build, '/') . '.{0,1200}Moodle\\s+' . preg_quote($moodleRelease, '/') . '/is';
+        if (preg_match($pattern, (string)$html) && ($selected === null || $build > $selected['build'])) {
+            $selected = ['build' => $build];
         }
     }
 
@@ -131,7 +130,7 @@ try {
     }
 
     $downloadUrl = $apiBase . '/plugins/' . rawurlencode($component)
-        . '/versions/' . rawurlencode((string)($selected['id'] ?? $selected['build'])) . '/download';
+        . '/versions/' . $selected['build'] . '/download';
     request($downloadUrl, $token, $outputZip);
 
     if (!is_file($outputZip) || filesize($outputZip) === 0) {
