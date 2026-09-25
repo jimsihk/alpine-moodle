@@ -78,6 +78,8 @@ jobs:
       - name: Build and Test
         run: |
           export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}
+          export ARG_MOODLE_PLUGIN_LIST='theme_moove,report_benchmark'
+          export MOODLE_MARKETPLACE_TOKEN="${{ secrets.MOODLE_MARKETPLACE_TOKEN }}"
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
 
       - name: Run Trivy vulnerability scanner
