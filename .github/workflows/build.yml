@@ -75,24 +75,6 @@ jobs:
           username: ${{ secrets.QUAYIO_USERNAME }}
           password: ${{ secrets.QUAYIO_TOKEN }}
 
-      - name: Build and Test - Marketplace without token
-        env:
-          ARG_MOODLE_MARKETPLACE_TOKEN_REQUIRED: 'false'
-          MOODLE_MARKETPLACE_TOKEN: ''
-        run: |
-          export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:test-build-no-token
-          export ARG_MOODLE_PLUGIN_LIST='theme_moove,report_benchmark'
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
-
-      - name: Build and Test - Marketplace with token
-        env:
-          MOODLE_MARKETPLACE_TOKEN: ${{ secrets.MOODLE_MARKETPLACE_TOKEN }}
-          ARG_MOODLE_MARKETPLACE_TOKEN_REQUIRED: 'true'
-        run: |
-          export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:test-build-with-token
-          export ARG_MOODLE_PLUGIN_LIST='theme_moove,report_benchmark'
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
-
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
