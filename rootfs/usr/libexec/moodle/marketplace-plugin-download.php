@@ -15,6 +15,9 @@ $token = '';
 if (is_readable($tokenFile)) {
     $token = trim((string)file_get_contents($tokenFile));
 }
+if (getenv('MOODLE_MARKETPLACE_TOKEN_REQUIRED') === 'true' && $token === '') {
+    throw new RuntimeException('MOODLE_MARKETPLACE_TOKEN is required for this test/build');
+}
 
 function request(string $url, string $token, ?string $output = null): array {
     $curl = curl_init($url);
