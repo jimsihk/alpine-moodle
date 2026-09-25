@@ -191,9 +191,14 @@ if [ -z "${moodle_plugin_list}" ]; then
 fi
 
 if [ -z "${MOODLE_RELEASE:-}" ]; then
-    MOODLE_APP=${MOODLE_APP:-/var/www/html}
-    export MOODLE_APP
-    MOODLE_RELEASE=$(php -r 'require $argv[1] . "/version.php"; preg_match("/^([0-9]+\\.[0-9]+)/", $release, $m); echo $m[0] ?? "";' "$MOODLE_APP")
+    # Derive the release from the Moodle stable branch (e.g. MOODLE_500_STABLE -> 5.0).
+    # This avoids depending on version.php after the source cleanup step.
+    case "${MOODLE_GIT_BRANCH:-}" in
+        MOODLE_[0-9][0-9][0-9]_STABLE)
+            branch_version=${MOODLE_GIT_BRANCH#MOODLE_}
+            MOODLE_RELEASE="${branch_version:0:1}.${branch_version:1:2}"
+            ;;
+    esac
 fi
 if [ -z "${MOODLE_RELEASE:-}" ]; then
     >&2 echo "ERROR: Unable to determine Moodle release."
