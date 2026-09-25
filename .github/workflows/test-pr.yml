@@ -82,6 +82,28 @@ jobs:
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
+
+          echo '#'
+          echo '###############################'
+          echo "Test - Marketplace plugin installation without token..."
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-marketplace-no-token
+          export ARG_MOODLE_PLUGIN_LIST='theme_moove,report_benchmark'
+          export ARG_MOODLE_MARKETPLACE_TOKEN_REQUIRED=false
+          export MOODLE_MARKETPLACE_TOKEN=''
+          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
+          docker compose --file docker-compose.test.yml down --remove-orphans
+
+          echo '#'
+          echo '###############################'
+          echo "Test - Marketplace plugin installation with token..."
+          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-marketplace-with-token
+          export ARG_MOODLE_PLUGIN_LIST='theme_moove,report_benchmark'
+          export ARG_MOODLE_MARKETPLACE_TOKEN_REQUIRED=true
+          export MOODLE_MARKETPLACE_TOKEN='${{ secrets.MOODLE_MARKETPLACE_TOKEN }}'
+          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
+          docker compose --file docker-compose.test.yml down --remove-orphans
+          unset ARG_MOODLE_PLUGIN_LIST ARG_MOODLE_MARKETPLACE_TOKEN_REQUIRED MOODLE_MARKETPLACE_TOKEN
+
       - name: Test Bind Volume Mount
         if: matrix.test == 'volume1'
         run: |
