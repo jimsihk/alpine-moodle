@@ -7,6 +7,8 @@ services:
         - ARG_MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
         - ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
         - ARG_ENABLE_GIT_CLONE=${ARG_ENABLE_GIT_CLONE:-true}
+      secrets:
+        - MOODLE_MARKETPLACE_TOKEN
     environment:
       - SITE_URL=http://app:8080
       - MOODLE_SITENAME=Dockerized_Moodle
@@ -59,3 +61,7 @@ services:
     command: /tmp/run_tests.sh
     volumes:
       - "./run_tests.sh:/tmp/run_tests.sh:ro"
+
+secrets:
+  MOODLE_MARKETPLACE_TOKEN:
+    environment: MOODLE_MARKETPLACE_TOKEN
