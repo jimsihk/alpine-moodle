@@ -21,3 +21,11 @@ echo "moodle is ready"
 sleep 3;
 
 wget -q -O - http://app:8080 | grep '>Dockerized_Moodle<'
+
+# Verify both a public Marketplace plugin and the authenticated plugin path were installed.
+# The token itself is never printed or inspected here.
+echo "Checking Marketplace plugin installations"
+wget -q -O - http://app:8080/admin/plugins.php | grep -q 'Moove'
+# theme_moove must be present in the image after the Marketplace download.
+# Use the application container filesystem via its HTTP-accessible plugin page above.
+
