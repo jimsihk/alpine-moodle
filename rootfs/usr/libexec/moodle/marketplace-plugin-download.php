@@ -87,24 +87,90 @@ function maturityScore(mixed $value): int {
     };
 }
 
-function normaliseVersions(array $data): array {
-    $versions = $data['versions'] ?? $data['data'] ?? $data;
-    if (is_array($versions) && isset($versions['data']) && is_array($versions['data'])) {
-        $versions = $versions['data'];
+function validatePluginVersion(
+    string $zip,
+    string $component,
+    string $moodleRelease,
+    int|float $coreVersion
+): bool {
+    $tempDir = sys_get_temp_dir() . '/moodle-plugin-' . bin2hex(random_bytes(8));
+    if (!mkdir($tempDir, 0700, true)) {
+        throw new RuntimeException('Unable to create plugin validation directory');
     }
-    return is_array($versions) ? $versions : [];
+
+    try {
+        $command = sprintf(
+            'unzip -q %s -d %s',
+            escapeshellarg($zip),
+            escapeshellarg($tempDir)
+        );
+        exec($command, $unusedOutput, $status);
+        if ($status !== 0) {
+            throw new RuntimeException('Unable to extract Marketplace plugin archive for validation');
+        }
+
+        $versionFiles = glob($tempDir . '/*/version.php');
+        if ($versionFiles === false || count($versionFiles) !== 1) {
+            throw new RuntimeException("{$component} archive does not contain exactly one top-level version.php");
+        }
+
+        $versionFile = $versionFiles[0];
+        if (!defined('MOODLE_INTERNAL')) {
+            define('MOODLE_INTERNAL', true);
+            define('MATURITY_ALPHA', 50);
+            define('MATURITY_BETA', 100);
+            define('MATURITY_RC', 150);
+            define('MATURITY_STABLE', 200);
+        }
+
+        $plugin = null;
+        require $versionFile;
+
+        if (!is_object($plugin) || ($plugin->component ?? null) !== $component) {
+            throw new RuntimeException("{$component} version.php declares an unexpected component");
+        }
+        if (!isset($plugin->version) || !is_numeric($plugin->version)) {
+            throw new RuntimeException("{$component} version.php does not declare a valid plugin version");
+        }
+
+        $branch = (int)str_replace('.', '', $moodleRelease);
+        if (isset($plugin->requires) && is_numeric($plugin->requires)
+            && (float)$plugin->requires > (float)$coreVersion) {
+            echo "Rejected Marketplace build {$plugin->version} for {$component}: requires Moodle {$plugin->requires}, core is {$coreVersion}\n";
+            return false;
+        }
+
+        if (isset($plugin->supported)) {
+            if (!is_array($plugin->supported) || count($plugin->supported) !== 2
+                || !is_numeric($plugin->supported[0]) || !is_numeric($plugin->supported[1])) {
+                throw new RuntimeException("{$component} version.php has invalid supported metadata");
+            }
+            if ($branch < (int)$plugin->supported[0] || $branch > (int)$plugin->supported[1]) {
+                echo "Rejected Marketplace build {$plugin->version} for {$component}: Moodle branch {$branch} is outside supported range\n";
+                return false;
+            }
+        }
+
+        if (isset($plugin->incompatible) && $plugin->incompatible !== null
+            && is_numeric($plugin->incompatible)
+            && $branch >= (int)$plugin->incompatible) {
+            echo "Rejected Marketplace build {$plugin->version} for {$component}: Moodle branch {$branch} is incompatible\n";
+            return false;
+        }
+
+        return true;
+    } finally {
+        exec(sprintf('rm -rf %s', escapeshellarg($tempDir)));
+    }
 }
 
 try {
-    // Marketplace exposes version metadata on the plugin versions page. The download
-    // itself is performed through the documented Marketplace API endpoint.
+    // The Marketplace versions page is used for release discovery. Compatibility is
+    // then verified from the candidate ZIP's version.php, using the same metadata
+    // Moodle core uses during plugin installation.
     $versionsUrl = 'https://marketplace.moodle.com/plugins/' . rawurlencode($component) . '/versions?show=all';
     [, $html] = request($versionsUrl, $token);
-    $selected = null;
 
-    // Convert the versions page to plain text first. Each version entry has
-    // "Supported Moodle versions" followed by its own "Version build number".
-    // Pairing these fields avoids matching compatibility text from another version.
     $text = html_entity_decode(strip_tags((string)$html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     $text = preg_replace('/[[:space:]]+/', ' ', $text) ?? $text;
 
@@ -113,39 +179,84 @@ try {
         throw new RuntimeException("No Marketplace versions found for {$component}");
     }
 
+    $candidates = [];
     foreach ($entryMatches as $entry) {
         $supportedMoodle = trim($entry[1]);
         $build = (int)$entry[2];
-
         if ($build <= 0) {
             continue;
         }
-        if ($force) {
-            if ($selected === null || $build > $selected['build']) {
-                $selected = ['build' => $build];
-            }
-            continue;
+
+        $maturity = 0;
+        if (preg_match('/Maturity:\s*([^\s]+).*$/i', $supportedMoodle, $maturityMatch)) {
+            $maturity = maturityScore($maturityMatch[1]);
         }
 
-        // The compatibility field belongs to this exact Marketplace version.
-        if (preg_match('/(?:^|[^0-9])' . preg_quote($moodleRelease, '/') . '(?:$|[^0-9])/i', $supportedMoodle)
-            && ($selected === null || $build > $selected['build'])) {
-            $selected = ['build' => $build];
+        if ($force || preg_match(
+            '/(?:^|[^0-9])' . preg_quote($moodleRelease, '/') . '(?:$|[^0-9])/i',
+            $supportedMoodle
+        )) {
+            if ($force || $maturity >= $minimumMaturity) {
+                $candidates[$build] = $build;
+            }
         }
     }
-    if ($selected === null) {
+
+    if ($force) {
+        // Forced installs deliberately bypass Marketplace compatibility filtering,
+        // but still validate the archive structure before installing it.
+        foreach ($entryMatches as $entry) {
+            $build = (int)$entry[2];
+            if ($build > 0) {
+                $candidates[$build] = $build;
+            }
+        }
+    }
+
+    if ($candidates === []) {
         throw new RuntimeException("No Marketplace version of {$component} is compatible with Moodle {$moodleRelease}");
     }
 
-    $downloadUrl = $apiBase . '/plugins/' . rawurlencode($component)
-        . '/versions/' . $selected['build'] . '/download';
-    request($downloadUrl, $token, $outputZip);
+    rsort($candidates, SORT_NUMERIC);
 
-    if (!is_file($outputZip) || filesize($outputZip) === 0) {
-        throw new RuntimeException("Marketplace returned an empty archive for {$component}");
+    $candidateDir = dirname($outputZip);
+    if (!is_dir($candidateDir) && !mkdir($candidateDir, 0700, true) && !is_dir($candidateDir)) {
+        throw new RuntimeException('Unable to create Marketplace download directory');
     }
 
-    echo "Selected Marketplace version {$selected['build']} for {$component}\n";
+    $coreVersion = getenv('MOODLE_CORE_VERSION');
+    if ($coreVersion === false || !is_numeric($coreVersion)) {
+        throw new RuntimeException('MOODLE_CORE_VERSION is required to validate Marketplace plugin compatibility');
+    }
+
+    foreach ($candidates as $build) {
+        $candidateZip = $candidateDir . '/candidate-' . $build . '.zip';
+        $downloadUrl = $apiBase . '/plugins/' . rawurlencode($component)
+            . '/versions/' . $build . '/download';
+
+        echo "Checking Marketplace version {$build} for {$component}\n";
+        request($downloadUrl, $token, $candidateZip);
+
+        try {
+            if (!is_file($candidateZip) || filesize($candidateZip) === 0) {
+                throw new RuntimeException("Marketplace returned an empty archive for {$component}");
+            }
+
+            if (validatePluginVersion($candidateZip, $component, $moodleRelease, $coreVersion)) {
+                if ($candidateZip !== $outputZip) {
+                    rename($candidateZip, $outputZip);
+                }
+                echo "Selected Marketplace version {$build} for {$component}\n";
+                exit(0);
+            }
+        } finally {
+            if (is_file($candidateZip)) {
+                @unlink($candidateZip);
+            }
+        }
+    }
+
+    throw new RuntimeException("No Marketplace plugin archive passed Moodle compatibility validation for {$component} on Moodle {$moodleRelease}");
 } catch (Throwable $e) {
     @unlink($outputZip);
     fwrite(STDERR, "ERROR: {$e->getMessage()}\n");
