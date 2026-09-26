@@ -91,7 +91,7 @@ function validatePluginVersion(
     string $zip,
     string $component,
     string $moodleRelease,
-    int|float $coreVersion
+    string|int|float $coreVersion
 ): bool {
     $tempDir = sys_get_temp_dir() . '/moodle-plugin-' . bin2hex(random_bytes(8));
     if (!mkdir($tempDir, 0700, true)) {
