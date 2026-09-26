@@ -124,7 +124,7 @@ function validatePluginVersion(
             define('ANY_VERSION', 'any');
         }
 
-        $plugin = null;
+        $plugin = new stdClass();
         require $versionFile;
 
         if (!is_object($plugin) || ($plugin->component ?? null) !== $component) {
