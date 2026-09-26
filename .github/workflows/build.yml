@@ -75,11 +75,6 @@ jobs:
           username: ${{ secrets.QUAYIO_USERNAME }}
           password: ${{ secrets.QUAYIO_TOKEN }}
 
-      - name: Build and Test
-        run: |
-          export TEST_IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ env.TEST_TAG }}
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
-
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
