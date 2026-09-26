@@ -25,7 +25,7 @@ if [ -d "${TEMP_MOODLE_PATH}" ]; then
 fi
 "$UTL_PATH"/clone-from-git "${MOODLE_GIT_URL}" "${MOODLE_GIT_BRANCH}" "${MOODLE_GIT_COMMIT}" "${TEMP_MOODLE_PATH}"
 # Capture the exact Moodle core version before cleanup removes version.php.
-MOODLE_CORE_VERSION=$(php -r 'define("MOODLE_INTERNAL", true); require $argv[1]; echo $version;' "${TEMP_MOODLE_PATH}/version.php")
+MOODLE_CORE_VERSION=$(php -r 'define("MOODLE_INTERNAL", true); define("MATURITY_ALPHA", 50); define("MATURITY_BETA", 100); define("MATURITY_RC", 150); define("MATURITY_STABLE", 200); define("ANY_VERSION", "any"); require $argv[1]; echo $version;' "${TEMP_MOODLE_PATH}/version.php")
 export MOODLE_CORE_VERSION
 echo "Moodle core version: ${MOODLE_CORE_VERSION}"
 
