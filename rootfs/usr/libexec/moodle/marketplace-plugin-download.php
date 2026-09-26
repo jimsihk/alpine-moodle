@@ -174,9 +174,10 @@ try {
     [$status, $html, $effectiveUrl, $contentType] = request($versionsUrl, $token);
     $responseLength = strlen((string)$html);
     $authMode = $token === '' ? 'without token' : 'with token';
+    $responseHash = hash('sha256', (string)$html);
     echo "Marketplace versions response {$authMode}: HTTP {$status}, Content-Type "
         . ($contentType !== '' ? $contentType : 'unknown')
-        . ", final URL {$effectiveUrl}, {$responseLength} bytes\n";
+        . ", final URL {$effectiveUrl}, {$responseLength} bytes, SHA-256 {$responseHash}\n";
 
     $entryMatches = [];
     $decoded = json_decode((string)$html, true);
@@ -220,6 +221,18 @@ try {
 
     if ($entryMatches === []) {
         throw new RuntimeException("No Marketplace versions found for {$component}");
+    }
+
+    echo "Parsed Marketplace entries for {$component}: " . count($entryMatches) . "\n";
+    foreach ($entryMatches as $entry) {
+        $debugMaturity = (string)($entry['maturity'] ?? '');
+        $debugSupported = $entry['moodleVersions'] ?? $entry['supportedMoodleVersions'] ?? [];
+        if (!is_array($debugSupported)) {
+            $debugSupported = preg_split('/[,;\\s]+/', trim((string)$debugSupported), -1, PREG_SPLIT_NO_EMPTY);
+        }
+        $debugBuild = (int)($entry['version'] ?? $entry['buildNumber'] ?? $entry['versionBuildNumber'] ?? 0);
+        echo "Marketplace entry: build {$debugBuild}, maturity {$debugMaturity}, supported Moodle "
+            . implode(',', array_map('strval', $debugSupported)) . "\n";
     }
 
     $candidates = [];
