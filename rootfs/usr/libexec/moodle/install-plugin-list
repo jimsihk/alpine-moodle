@@ -199,7 +199,7 @@ if [ -z "${MOODLE_RELEASE:-}" ]; then
             moodle_major="${branch_version%??}"
             moodle_minor="${branch_version#?}"
             moodle_minor="$((10#$moodle_minor))"
-            MOODLE_RELEASE="${moodle_major}.${moodle_minor}""
+            MOODLE_RELEASE="${moodle_major}.${moodle_minor}"
             ;;
     esac
 fi
