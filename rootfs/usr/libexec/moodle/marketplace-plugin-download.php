@@ -238,7 +238,7 @@ try {
         // Forced installs deliberately bypass Marketplace compatibility filtering,
         // but still validate the archive structure before installing it.
         foreach ($entryMatches as $entry) {
-            $build = (int)$entry[3];
+            $build = (int)($entry['version'] ?? $entry['buildNumber'] ?? $entry['versionBuildNumber'] ?? 0);
             if ($build > 0) {
                 $candidates[$build] = $build;
             }
