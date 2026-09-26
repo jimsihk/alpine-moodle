@@ -106,13 +106,11 @@ ENV MEMCACHED_PLUGIN_GIT_COMMIT=${ARG_MEMCACHED_PLUGIN_GIT_COMMIT}
 
 ARG ARG_MOODLE_PLUGIN_LIST=''
 ARG ARG_ALLOW_INCOMPATIBLE_PLUGIN='false'
-ARG ARG_MOODLE_MARKETPLACE_TOKEN_REQUIRED='false'
 ENV MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
 ENV ALLOW_INCOMPATIBLE_PLUGIN=${ARG_ALLOW_INCOMPATIBLE_PLUGIN}
 
 # Download Moodle source codes and plugin source codes
 RUN --mount=type=secret,id=MOODLE_MARKETPLACE_TOKEN,required=false,uid=65534,gid=65534,mode=0400 \
-    MOODLE_MARKETPLACE_TOKEN_REQUIRED=${ARG_MOODLE_MARKETPLACE_TOKEN_REQUIRED} \
     /usr/libexec/moodle/download-moodle-code \
     # Create a backup of custom code
     && cp -p /var/www/html/admin/cli/isinstalled.php /usr/libexec/moodle/
