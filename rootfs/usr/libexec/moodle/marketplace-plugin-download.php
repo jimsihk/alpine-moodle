@@ -52,6 +52,8 @@ function request(string $url, string $token, ?string $output = null): array {
     $errno = curl_errno($curl);
     $error = curl_error($curl);
     $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    $effectiveUrl = (string)curl_getinfo($curl, CURLINFO_EFFECTIVE_URL);
+    $contentType = (string)curl_getinfo($curl, CURLINFO_CONTENT_TYPE);
     curl_close($curl);
     if (isset($fp) && is_resource($fp)) {
         fclose($fp);
@@ -67,7 +69,7 @@ function request(string $url, string $token, ?string $output = null): array {
         throw new RuntimeException("Marketplace API returned HTTP {$status}");
     }
 
-    return [$status, $body];
+    return [$status, $body, $effectiveUrl, $contentType];
 }
 
 function maturityScore(mixed $value): int {
@@ -169,7 +171,12 @@ try {
     // then verified from the candidate ZIP's version.php, using the same metadata
     // Moodle core uses during plugin installation.
     $versionsUrl = 'https://marketplace.moodle.com/plugins/' . rawurlencode($component) . '/versions?show=all';
-    [, $html] = request($versionsUrl, $token);
+    [$status, $html, $effectiveUrl, $contentType] = request($versionsUrl, $token);
+    $responseLength = strlen((string)$html);
+    $authMode = $token === '' ? 'without token' : 'with token';
+    echo "Marketplace versions response {$authMode}: HTTP {$status}, Content-Type "
+        . ($contentType !== '' ? $contentType : 'unknown')
+        . ", final URL {$effectiveUrl}, {$responseLength} bytes\n";
 
     $entryMatches = [];
     $decoded = json_decode((string)$html, true);
