@@ -235,6 +235,8 @@ try {
             . implode(',', array_map('strval', $debugSupported)) . "\n";
     }
 
+    echo "Marketplace selection context for {$component}: Moodle release={$moodleRelease}, minimum maturity={$minimumMaturity}, force=" . ($force ? "true" : "false") . "\n";
+
     $candidates = [];
     foreach ($entryMatches as $entry) {
         $maturity = maturityScore($entry['maturity'] ?? 0);
