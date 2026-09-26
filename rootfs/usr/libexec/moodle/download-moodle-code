@@ -24,6 +24,11 @@ if [ -d "${TEMP_MOODLE_PATH}" ]; then
   rm -rf "${TEMP_MOODLE_PATH}";
 fi
 "$UTL_PATH"/clone-from-git "${MOODLE_GIT_URL}" "${MOODLE_GIT_BRANCH}" "${MOODLE_GIT_COMMIT}" "${TEMP_MOODLE_PATH}"
+# Capture the exact Moodle core version before cleanup removes version.php.
+MOODLE_CORE_VERSION=$(php -r 'define("MOODLE_INTERNAL", true); require $argv[1]; echo $version;' "${TEMP_MOODLE_PATH}/version.php")
+export MOODLE_CORE_VERSION
+echo "Moodle core version: ${MOODLE_CORE_VERSION}"
+
 # Remove unused files which are difficult to hide by Nginx config
 "$MOODLE_UTL_PATH"/clean-moodle-code "${TEMP_MOODLE_PATH}"
 echo "Copying from ${TEMP_MOODLE_PATH} to ${WEB_PATH}..."
