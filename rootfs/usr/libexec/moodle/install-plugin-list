@@ -196,6 +196,7 @@ if [ -z "${MOODLE_RELEASE:-}" ]; then
     case "${MOODLE_GIT_BRANCH:-}" in
         MOODLE_[0-9][0-9][0-9]_STABLE)
             branch_version=${MOODLE_GIT_BRANCH#MOODLE_}
+            branch_version=${branch_version%_STABLE}
             moodle_major="${branch_version%??}"
             moodle_minor="${branch_version#?}"
             moodle_minor="$((10#$moodle_minor))"
