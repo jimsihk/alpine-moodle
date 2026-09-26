@@ -121,6 +121,7 @@ function validatePluginVersion(
             define('MATURITY_BETA', 100);
             define('MATURITY_RC', 150);
             define('MATURITY_STABLE', 200);
+            define('ANY_VERSION', 'any');
         }
 
         $plugin = null;
