@@ -133,7 +133,10 @@ function validatePluginVersion(
             throw new RuntimeException("{$component} version.php does not declare a valid plugin version");
         }
 
-        $branch = (int)str_replace('.', '', $moodleRelease);
+        if (!preg_match('/^(\\d+)\\.(\\d+)$/', $moodleRelease, $releaseParts)) {
+            throw new RuntimeException("Invalid Moodle release: {$moodleRelease}");
+        }
+        $branch = (int)$releaseParts[1] * 100 + (int)$releaseParts[2];
         if (isset($plugin->requires) && is_numeric($plugin->requires)
             && (float)$plugin->requires > (float)$coreVersion) {
             echo "Rejected Marketplace build {$plugin->version} for {$component}: requires Moodle {$plugin->requires}, core is {$coreVersion}\n";
@@ -181,8 +184,9 @@ try {
 
     $candidates = [];
     foreach ($entryMatches as $entry) {
-        $supportedMoodle = trim($entry[1]);
-        $build = (int)$entry[2];
+        $maturity = maturityScore($entry[1]);
+        $supportedMoodle = trim($entry[2]);
+        $build = (int)$entry[3];
         if ($build <= 0) {
             continue;
         }
@@ -192,13 +196,11 @@ try {
             $maturity = maturityScore($maturityMatch[1]);
         }
 
-        if ($force || preg_match(
+        if (($force || preg_match(
             '/(?:^|[^0-9])' . preg_quote($moodleRelease, '/') . '(?:$|[^0-9])/i',
             $supportedMoodle
-        )) {
-            if ($force || $maturity >= $minimumMaturity) {
-                $candidates[$build] = $build;
-            }
+        )) && ($force || $maturity >= $minimumMaturity)) {
+            $candidates[$build] = $build;
         }
     }
 
@@ -206,7 +208,7 @@ try {
         // Forced installs deliberately bypass Marketplace compatibility filtering,
         // but still validate the archive structure before installing it.
         foreach ($entryMatches as $entry) {
-            $build = (int)$entry[2];
+            $build = (int)$entry[3];
             if ($build > 0) {
                 $candidates[$build] = $build;
             }
