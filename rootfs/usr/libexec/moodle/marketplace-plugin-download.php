@@ -177,7 +177,7 @@ try {
     $text = html_entity_decode(strip_tags((string)$html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     $text = preg_replace('/[[:space:]]+/', ' ', $text) ?? $text;
 
-    $entryPattern = '/Supported Moodle versions:\s*(.*?)\s+Repository URL.*?Version build number:\s*(\d{10})/i';
+    $entryPattern = '/Maturity:\s*([^\s]+)\s+Supported Moodle versions:\s*(.*?)\s+Repository URL.*?Version build number:\s*(\d{10})/i';
     if (!preg_match_all($entryPattern, $text, $entryMatches, PREG_SET_ORDER)) {
         throw new RuntimeException("No Marketplace versions found for {$component}");
     }
@@ -189,11 +189,6 @@ try {
         $build = (int)$entry[3];
         if ($build <= 0) {
             continue;
-        }
-
-        $maturity = 0;
-        if (preg_match('/Maturity:\s*([^\s]+).*$/i', $supportedMoodle, $maturityMatch)) {
-            $maturity = maturityScore($maturityMatch[1]);
         }
 
         if (($force || preg_match(
