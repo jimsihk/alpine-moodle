@@ -171,27 +171,65 @@ try {
     $versionsUrl = 'https://marketplace.moodle.com/plugins/' . rawurlencode($component) . '/versions?show=all';
     [, $html] = request($versionsUrl, $token);
 
-    $text = html_entity_decode(strip_tags((string)$html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    $text = preg_replace('/[[:space:]]+/', ' ', $text) ?? $text;
+    $entryMatches = [];
+    $decoded = json_decode((string)$html, true);
+    if (is_array($decoded)) {
+        $collectEntries = static function (mixed $value) use (&$collectEntries, &$entryMatches): void {
+            if (!is_array($value)) {
+                return;
+            }
 
-    $entryPattern = '/Maturity:\s*([^\s]+)\s+Supported Moodle versions:\s*(.*?)\s+Repository URL.*?Version build number:\s*(\d{10})/i';
-    if (!preg_match_all($entryPattern, $text, $entryMatches, PREG_SET_ORDER)) {
+            if (isset($value['version'], $value['maturity'])
+                && (isset($value['moodleVersions']) || isset($value['supportedMoodleVersions']))) {
+                $entryMatches[] = $value;
+            }
+
+            foreach ($value as $child) {
+                if (is_array($child)) {
+                    $collectEntries($child);
+                }
+            }
+        };
+        $collectEntries($decoded);
+    }
+
+    // Keep a fallback for Marketplace responses that are rendered as HTML. Do not
+    // derive compatibility from the plugin version/release name: the authoritative
+    // compatibility field is "Supported Moodle versions".
+    if ($entryMatches === []) {
+        $text = html_entity_decode(strip_tags((string)$html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/[[:space:]]+/', ' ', $text) ?? $text;
+        $entryPattern = '/Maturity:\s*([^\s]+)\s+Supported Moodle versions:\s*(.*?)\s+Repository URL.*?Version build number:\s*(\d{10})/i';
+        if (preg_match_all($entryPattern, $text, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $entry) {
+                $entryMatches[] = [
+                    'maturity' => $entry[1],
+                    'supportedMoodleVersions' => preg_split('/[,;\s]+/', trim($entry[2]), -1, PREG_SPLIT_NO_EMPTY),
+                    'version' => $entry[3],
+                ];
+            }
+        }
+    }
+
+    if ($entryMatches === []) {
         throw new RuntimeException("No Marketplace versions found for {$component}");
     }
 
     $candidates = [];
     foreach ($entryMatches as $entry) {
-        $maturity = maturityScore($entry[1]);
-        $supportedMoodle = trim($entry[2]);
-        $build = (int)$entry[3];
+        $maturity = maturityScore($entry['maturity'] ?? 0);
+        $supportedMoodle = $entry['moodleVersions'] ?? $entry['supportedMoodleVersions'] ?? [];
+        if (!is_array($supportedMoodle)) {
+            $supportedMoodle = preg_split('/[,;\s]+/', trim((string)$supportedMoodle), -1, PREG_SPLIT_NO_EMPTY);
+        }
+        $supportedMoodle = array_map('strval', $supportedMoodle);
+        $build = (int)($entry['version'] ?? $entry['buildNumber'] ?? $entry['versionBuildNumber'] ?? 0);
         if ($build <= 0) {
             continue;
         }
 
-        if (($force || preg_match(
-            '/(?:^|[^0-9])' . preg_quote($moodleRelease, '/') . '(?:$|[^0-9])/i',
-            $supportedMoodle
-        )) && ($force || $maturity >= $minimumMaturity)) {
+        if (($force || in_array($moodleRelease, $supportedMoodle, true))
+            && ($force || $maturity >= $minimumMaturity)) {
             $candidates[$build] = $build;
         }
     }
