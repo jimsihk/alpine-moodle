@@ -40,7 +40,7 @@ jobs:
         id: versions
         if: steps.detect.outputs.ready == 'true'
         env:
-          ALPINE_REPO: ${{ steps.detect.outputs.new_repo }}
+          ALPINE_SERIES: ${{ steps.detect.outputs.new_series }}
         run: bash .github/scripts/resolve_package_versions.sh
 
       - name: Update Dockerfile package pins
@@ -58,7 +58,6 @@ jobs:
 
           python3 .github/scripts/update_alpine_package_pins.py \
             --dockerfile Dockerfile \
-            --alpine-repo "${{ steps.detect.outputs.new_repo }}" \
             "${package_version_args[@]}"
 
       - name: Commit updated Alpine package pins
