@@ -72,6 +72,33 @@ function request(string $url, string $token, ?string $output = null): array {
     return [$status, $body, $effectiveUrl, $contentType];
 }
 
+function getCoreVersion(): string {
+    $coreVersion = getenv('MOODLE_CORE_VERSION');
+    if ($coreVersion !== false && is_numeric($coreVersion)) {
+        return (string)$coreVersion;
+    }
+
+    $moodleApp = getenv('MOODLE_APP') ?: (getenv('WEB_PATH') ?: '/var/www/html');
+    $versionFile = rtrim($moodleApp, '/') . '/version.php';
+    if (!is_readable($versionFile)) {
+        throw new RuntimeException(
+            "Unable to determine Moodle core version: MOODLE_CORE_VERSION is unset and {$versionFile} is not readable"
+        );
+    }
+
+    if (!defined('MOODLE_INTERNAL')) {
+        define('MOODLE_INTERNAL', true);
+    }
+
+    $version = null;
+    require $versionFile;
+    if (!is_numeric($version)) {
+        throw new RuntimeException("Moodle core version.php does not declare a valid core version");
+    }
+
+    return (string)$version;
+}
+
 function maturityScore(mixed $value): int {
     if (is_numeric($value)) {
         return (int)$value;
@@ -278,10 +305,7 @@ try {
         throw new RuntimeException('Unable to create Marketplace download directory');
     }
 
-    $coreVersion = getenv('MOODLE_CORE_VERSION');
-    if ($coreVersion === false || !is_numeric($coreVersion)) {
-        throw new RuntimeException('MOODLE_CORE_VERSION is required to validate Marketplace plugin compatibility');
-    }
+    $coreVersion = getCoreVersion();
 
     foreach ($candidates as $build) {
         $candidateZip = $candidateDir . '/candidate-' . $build . '.zip';
