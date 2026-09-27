@@ -92,7 +92,8 @@ function validatePluginVersion(
     string $zip,
     string $component,
     string $moodleRelease,
-    string|int|float $coreVersion
+    string|int|float $coreVersion,
+    bool $force
 ): bool {
     $tempDir = sys_get_temp_dir() . '/moodle-plugin-' . bin2hex(random_bytes(8));
     if (!mkdir($tempDir, 0700, true)) {
@@ -135,7 +136,13 @@ function validatePluginVersion(
             throw new RuntimeException("{$component} version.php does not declare a valid plugin version");
         }
 
-        if (!preg_match('/^(\\d+)\\.(\\d+)$/', $moodleRelease, $releaseParts)) {
+        // Force mode bypasses Moodle compatibility validation by design. The archive
+        // structure and plugin identity/version are still validated before installation.
+        if ($force) {
+            return true;
+        }
+
+        if (!preg_match('/^(\d+)\.(\d+)$/', $moodleRelease, $releaseParts)) {
             throw new RuntimeException("Invalid Moodle release: {$moodleRelease}");
         }
         $branch = (int)$releaseParts[1] * 100 + (int)$releaseParts[2];
@@ -294,7 +301,7 @@ try {
                 throw new RuntimeException("Marketplace returned an empty archive for {$component}");
             }
 
-            if (validatePluginVersion($candidateZip, $component, $moodleRelease, $coreVersion)) {
+            if (validatePluginVersion($candidateZip, $component, $moodleRelease, $coreVersion, $force)) {
                 if ($candidateZip !== $outputZip) {
                     rename($candidateZip, $outputZip);
                 }
