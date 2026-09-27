@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 if ($argc !== 7) {
-    fwrite(STDERR, "Usage: marketplace-plugin-download.php COMPONENT MOODLE_RELEASE MIN_MATURITY FORCE OUTPUT_ZIP MOODLE_CORE_VERSION\n");
+    fwrite(STDERR, "Usage: marketplace-plugin-download.php COMPONENT MOODLE_RELEASE MIN_MATURITY FORCE OUTPUT_ZIP CORE_VERSION\n");
     exit(2);
 }
 
