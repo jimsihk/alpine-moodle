@@ -211,9 +211,9 @@ try {
         if (preg_match_all($entryPattern, $text, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $entry) {
                 $entryMatches[] = [
-                    'maturity' => $entry[1],
-                    'supportedMoodleVersions' => preg_split('/[,;\s]+/', trim($entry[2]), -1, PREG_SPLIT_NO_EMPTY),
-                    'version' => $entry[3],
+                    'maturity' => $entry[2],
+                    'supportedMoodleVersions' => preg_split('/[,;\s]+/', trim($entry[3]), -1, PREG_SPLIT_NO_EMPTY),
+                    'version' => $entry[1],
                 ];
             }
         }
