@@ -90,7 +90,8 @@ jobs:
           export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
           export ARG_ALLOW_INCOMPATIBLE_PLUGIN=false
           export MOODLE_MARKETPLACE_TOKEN='${{ secrets.MOODLE_MARKETPLACE_TOKEN }}'
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10 --build
+          docker compose --file docker-compose.test.yml build --no-cache app
+          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset ARG_MOODLE_PLUGIN_LIST ARG_ALLOW_INCOMPATIBLE_PLUGIN MOODLE_MARKETPLACE_TOKEN
 
