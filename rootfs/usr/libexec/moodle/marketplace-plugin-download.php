@@ -1,12 +1,15 @@
 <?php
 declare(strict_types=1);
 
-if ($argc !== 6) {
-    fwrite(STDERR, "Usage: marketplace-plugin-download.php COMPONENT MOODLE_RELEASE MIN_MATURITY FORCE OUTPUT_ZIP\n");
+if ($argc !== 7) {
+    fwrite(STDERR, "Usage: marketplace-plugin-download.php COMPONENT MOODLE_RELEASE MIN_MATURITY FORCE OUTPUT_ZIP MOODLE_CORE_VERSION\n");
     exit(2);
 }
 
-[, $component, $moodleRelease, $minimumMaturity, $force, $outputZip] = $argv;
+[, $component, $moodleRelease, $minimumMaturity, $force, $outputZip, $coreVersion] = $argv;
+if (!is_numeric($coreVersion)) {
+    throw new RuntimeException('Invalid Moodle core version');
+}
 $minimumMaturity = (int)$minimumMaturity;
 $force = $force === 'true';
 $apiBase = rtrim(getenv('MOODLE_MARKETPLACE_API') ?: 'https://marketplace.moodle.com/api', '/');
@@ -70,33 +73,6 @@ function request(string $url, string $token, ?string $output = null): array {
     }
 
     return [$status, $body, $effectiveUrl, $contentType];
-}
-
-function getCoreVersion(): string {
-    $coreVersion = getenv('MOODLE_CORE_VERSION');
-    if ($coreVersion !== false && is_numeric($coreVersion)) {
-        return (string)$coreVersion;
-    }
-
-    $moodleApp = getenv('MOODLE_APP') ?: (getenv('WEB_PATH') ?: '/var/www/html');
-    $versionFile = rtrim($moodleApp, '/') . '/version.php';
-    if (!is_readable($versionFile)) {
-        throw new RuntimeException(
-            "Unable to determine Moodle core version: MOODLE_CORE_VERSION is unset and {$versionFile} is not readable"
-        );
-    }
-
-    if (!defined('MOODLE_INTERNAL')) {
-        define('MOODLE_INTERNAL', true);
-    }
-
-    $version = null;
-    require $versionFile;
-    if (!is_numeric($version)) {
-        throw new RuntimeException("Moodle core version.php does not declare a valid core version");
-    }
-
-    return (string)$version;
 }
 
 function maturityScore(mixed $value): int {
@@ -304,8 +280,6 @@ try {
     if (!is_dir($candidateDir) && !mkdir($candidateDir, 0700, true) && !is_dir($candidateDir)) {
         throw new RuntimeException('Unable to create Marketplace download directory');
     }
-
-    $coreVersion = getCoreVersion();
 
     foreach ($candidates as $build) {
         $candidateZip = $candidateDir . '/candidate-' . $build . '.zip';
