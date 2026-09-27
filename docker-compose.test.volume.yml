@@ -23,6 +23,7 @@ services:
       args:
         - ARG_MOODLE_GIT_COMMIT=${ARG_MOODLE_GIT_COMMIT}
         - ARG_MOODLE_GIT_BRANCH=${ARG_MOODLE_GIT_BRANCH}
+        - ARG_MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
     restart: unless-stopped
     environment:
       - LANG=en_US.UTF-8
@@ -54,6 +55,7 @@ services:
       - SESSION_CACHE_PREFIX=mdl
       - AUTO_UPDATE_MOODLE=${AUTO_UPDATE_MOODLE:-false}
       - UPDATE_MOODLE_CODE=${UPDATE_MOODLE_CODE:-false}
+      - MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
     volumes:
       - ${LOCAL_PATH:-./tmpdata}/moodledata:/var/www/moodledata
       - ${LOCAL_PATH:-./tmpdata}/moodlehtml:/var/www/html
