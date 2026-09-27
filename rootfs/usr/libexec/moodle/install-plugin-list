@@ -32,6 +32,17 @@ OPTIONS:
 EOF2
 }
 
+get_moodle_core_version() {
+    local version_file="${MOODLE_APP:-/var/www/html}/version.php"
+
+    if [ ! -r "$version_file" ]; then
+        >&2 echo "ERROR: Unable to determine Moodle core version: ${version_file} is not readable."
+        exit 1
+    fi
+
+    php -r 'define("MOODLE_INTERNAL", true); define("MATURITY_ALPHA", 50); define("MATURITY_BETA", 100); define("MATURITY_RC", 150); define("MATURITY_STABLE", 200); define("ANY_VERSION", "any"); require $argv[1]; echo $version;' "$version_file"
+}
+
 install_path() {
     local plugin_type=$1
     local plugin_name=$2
@@ -126,7 +137,8 @@ install_plugin() {
         "${MOODLE_RELEASE}" \
         "${script_moodle_plugin_maturity}" \
         "${script_moodle_plugin_force}" \
-        "$zip_file"
+        "$zip_file" \
+        "${MOODLE_CORE_VERSION}"
 
     if [ ! -s "$zip_file" ]; then
         >&2 echo "ERROR: Moodle Marketplace returned an empty plugin archive for ${component}."
@@ -209,6 +221,8 @@ if [ -z "${MOODLE_RELEASE:-}" ]; then
     exit 1
 fi
 export MOODLE_RELEASE
+MOODLE_CORE_VERSION=$(get_moodle_core_version)
+echo "Moodle core version: ${MOODLE_CORE_VERSION}"
 
 IFS=',' read -r -a comma_plugins <<< "${moodle_plugin_list// /,}"
 for plugin in "${comma_plugins[@]}"; do
