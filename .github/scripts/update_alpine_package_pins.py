@@ -6,9 +6,8 @@ import sys
 from typing import Dict, Iterable, List
 
 
-ALPINE_REPO_PATTERN = r"alpine_[0-9]+_[0-9]+"
-RENOVATE_REPOLOGY_PATTERN = re.compile(
-    rf"^# renovate: datasource=repology depName={ALPINE_REPO_PATTERN}/(?P<package_name>[^\s]+) versioning=loose$"
+RENOVATE_APK_PATTERN = re.compile(
+    r"^# renovate: datasource=apk depName=(?P<package_name>[^\s]+) versioning=loose$"
 )
 PACKAGE_VERSION_PATTERN = re.compile(r'^ARG (?P<arg_name>[A-Z0-9_]+)="[^"]*"$')
 
@@ -16,7 +15,6 @@ PACKAGE_VERSION_PATTERN = re.compile(r'^ARG (?P<arg_name>[A-Z0-9_]+)="[^"]*"$')
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dockerfile", required=True)
-    parser.add_argument("--alpine-repo", required=True)
     parser.add_argument(
         "--package-version",
         action="append",
@@ -32,7 +30,7 @@ def extract_package_lines(content: str) -> Dict[str, str]:
     lines = content.splitlines()
 
     for index, line in enumerate(lines):
-        package_match = RENOVATE_REPOLOGY_PATTERN.match(line)
+        package_match = RENOVATE_APK_PATTERN.match(line)
         if package_match is None:
             continue
 
@@ -94,12 +92,7 @@ def main() -> int:
         package_lines = extract_package_lines(content)
         versions = build_versions(args.package_version, package_lines)
 
-        for arg_name, package_name in package_lines.items():
-            content = replace_or_fail(
-                content,
-                rf"^(# renovate: datasource=repology depName=){ALPINE_REPO_PATTERN}/{package_name}( versioning=loose)$",
-                rf"\1{args.alpine_repo}/{package_name}\2",
-            )
+        for arg_name in package_lines:
             content = replace_or_fail(
                 content,
                 rf'^ARG {arg_name}="[^"]*"$',
