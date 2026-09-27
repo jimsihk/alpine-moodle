@@ -49,6 +49,12 @@ jobs:
           PACKAGE_VERSIONS: ${{ steps.versions.outputs.package_versions }}
         run: |
           set -euo pipefail
+          # Keep Renovate's APK registry pinned to the Alpine major/minor series.
+          # Match only the exact Alpine CDN registry URL; do not alter unrelated branch= values.
+          NEW_MAJOR=${{ steps.detect.outputs.new_series }}
+          sed -E "s|^([[:space:]]*\\\"https://dl-cdn\\.alpinelinux\\.org/alpine\\?branch=)v[0-9]+\\.[0-9]+(&components=main,community&arch=x86_64\\\")$|\\1v${NEW_MAJOR}\\2|" renovate.json > renovate.json.tmp
+          mv renovate.json.tmp renovate.json
+
           package_version_args=()
 
           while IFS= read -r assignment; do
@@ -68,13 +74,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          if git diff --quiet -- Dockerfile; then
+          if git diff --quiet -- Dockerfile renovate.json; then
             echo "Dockerfile already matches Alpine ${NEW_SERIES}"
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Dockerfile
+          git add Dockerfile renovate.json
           git commit -m "Adjust Alpine package pins for ${NEW_SERIES}"
           git push origin "HEAD:${PR_HEAD_REF}"
