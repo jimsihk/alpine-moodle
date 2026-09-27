@@ -207,7 +207,7 @@ try {
     if ($entryMatches === []) {
         $text = html_entity_decode(strip_tags((string)$html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = preg_replace('/[[:space:]]+/', ' ', $text) ?? $text;
-        $entryPattern = '/Maturity:\s*([^\s]+)\s+Supported Moodle versions:\s*(.*?)\s+Repository URL.*?Version build number:\s*(\d{10})/i';
+        $entryPattern = '/Version build number:\s*(\d{10})(?:(?!Version build number:).)*?Maturity:\s*([^\s]+)(?:(?!Version build number:).)*?Supported Moodle versions:\s*(.*?)\s+Repository URL/i';
         if (preg_match_all($entryPattern, $text, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $entry) {
                 $entryMatches[] = [
