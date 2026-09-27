@@ -138,7 +138,7 @@ install_plugin() {
         "${script_moodle_plugin_maturity}" \
         "${script_moodle_plugin_force}" \
         "$zip_file" \
-        "${MOODLE_CORE_VERSION}"
+        "${core_version}"
 
     if [ ! -s "$zip_file" ]; then
         >&2 echo "ERROR: Moodle Marketplace returned an empty plugin archive for ${component}."
@@ -221,8 +221,8 @@ if [ -z "${MOODLE_RELEASE:-}" ]; then
     exit 1
 fi
 export MOODLE_RELEASE
-MOODLE_CORE_VERSION=$(get_moodle_core_version)
-echo "Moodle core version: ${MOODLE_CORE_VERSION}"
+core_version=$(get_moodle_core_version)
+echo "Moodle core version: ${core_version}"
 
 IFS=',' read -r -a comma_plugins <<< "${moodle_plugin_list// /,}"
 for plugin in "${comma_plugins[@]}"; do
