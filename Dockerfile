@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 ARG ARCH=quay.io/
-FROM ${ARCH}jimsihk/alpine-php-nginx:84.26.3
+FROM ${ARCH}jimsihk/alpine-php-nginx:84.27.0
 
 LABEL Description="Lightweight Moodle container with NGINX & PHP-FPM based on Alpine Linux." \
       Maintainer="99048231+jimsihk@users.noreply.github.com"
