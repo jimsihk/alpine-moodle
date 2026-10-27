@@ -21,6 +21,7 @@ PHP
 chmod +x "$tmp/bin/php"
 
 run_case() {
+    local case_name script_path scenario status
     case_name=$1
     script_path=$2
     scenario=$3
@@ -43,6 +44,7 @@ run_case() {
 }
 
 compare_case() {
+    local case_name
     case_name=$1
     run_case "v3-$case_name" "$baseline" "$case_name"
     run_case "v4-$case_name" "$candidate" "$case_name"
