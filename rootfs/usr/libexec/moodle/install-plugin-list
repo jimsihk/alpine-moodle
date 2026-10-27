@@ -1,4 +1,6 @@
-#!/bin/bash -eu
+#!/bin/sh
+set -eu
+set -f
 # Description: install Moodle plugin(s) from the Moodle Marketplace by component name.
 #
 # The Marketplace API is used for both version discovery and ZIP download. An optional
@@ -52,71 +54,69 @@ install_path() {
     # https://moodledev.io/docs/5.3/apis/plugintypes
     # Paths are Moodle-root-relative; plugin type names are not always enough to
     # derive their directory (many plugin types are nested under their owning module).
-    declare -A dirs=(
-        [tinymce]='lib/editor/tinymce/plugins'
-        [tiny]='lib/editor/tiny/plugins'
-        [workshopallocation]='mod/workshop/allocation'
-        [atto]='lib/editor/atto/plugins'
-        [availability]='availability/condition'
-        [assignsubmission]='mod/assign/submission'
-        [logstore]='admin/tool/log/store'
-        [quizaccess]='mod/quiz/accessrule'
-        [assignment]='mod/assignment/type'
-        [assignfeedback]='mod/assign/feedback'
-        [gradingform]='grade/grading/form'
-        [qbehaviour]='question/behaviour'
-        [profilefield]='user/profile/field'
-        [workshopform]='mod/workshop/form'
-        [workshopeval]='mod/workshop/eval'
-        [scormreport]='mod/scorm/report'
-        [fileconverter]='files/converter'
-        [qformat]='question/format'
-        [quiz]='mod/quiz/report'
-        [ltiservice]='mod/lti/service'
-        [datapreset]='mod/data/preset'
-        [ltisource]='mod/lti/source'
-        [datafield]='mod/data/field'
-        [message]='message/output'
-        [booktool]='mod/book/tool'
-        [calendartype]='calendar/type'
-        [format]='course/format'
-        [coursereport]='course/report'
-        [mlbackend]='lib/mlbackend'
-        [search]='search/engine'
-        [antivirus]='lib/antivirus'
-        [qtype]='question/type'
-        [qbank]='question/bank'
-        [contenttype]='contentbank/contenttype'
-        [h5plib]='h5p/h5plib'
-        [media]='media/player'
-        [cachestore]='cache/stores'
-        [gradereport]='grade/report'
-        [gradeimport]='grade/import'
-        [gradeexport]='grade/export'
-        [mnetservice]='mnet/service'
-        [cachelock]='cache/locks'
-        [plagiarism]='plagiarism'
-        [repository]='repository'
-        [tool]='admin/tool'
-        [editor]='lib/editor'
-        [dataformat]='dataformat'
-        [webservice]='webservice'
-        [portfolio]='portfolio'
-        [filter]='filter'
-        [report]='report'
-        [block]='blocks'
-        [local]='local'
-        [enrol]='enrol'
-        [theme]='theme'
-        [auth]='auth'
-        [mod]='mod'
-    )
-
-    plugin_dir=${dirs[$plugin_type]:-}
-    if [ -z "$plugin_dir" ]; then
-        >&2 echo "ERROR: ${plugin_type} is not a valid Moodle plugin type."
-        exit 1
-    fi
+    case "$plugin_type" in
+        tinymce) plugin_dir='lib/editor/tinymce/plugins' ;;
+        tiny) plugin_dir='lib/editor/tiny/plugins' ;;
+        workshopallocation) plugin_dir='mod/workshop/allocation' ;;
+        atto) plugin_dir='lib/editor/atto/plugins' ;;
+        availability) plugin_dir='availability/condition' ;;
+        assignsubmission) plugin_dir='mod/assign/submission' ;;
+        logstore) plugin_dir='admin/tool/log/store' ;;
+        quizaccess) plugin_dir='mod/quiz/accessrule' ;;
+        assignment) plugin_dir='mod/assignment/type' ;;
+        assignfeedback) plugin_dir='mod/assign/feedback' ;;
+        gradingform) plugin_dir='grade/grading/form' ;;
+        qbehaviour) plugin_dir='question/behaviour' ;;
+        profilefield) plugin_dir='user/profile/field' ;;
+        workshopform) plugin_dir='mod/workshop/form' ;;
+        workshopeval) plugin_dir='mod/workshop/eval' ;;
+        scormreport) plugin_dir='mod/scorm/report' ;;
+        fileconverter) plugin_dir='files/converter' ;;
+        qformat) plugin_dir='question/format' ;;
+        quiz) plugin_dir='mod/quiz/report' ;;
+        ltiservice) plugin_dir='mod/lti/service' ;;
+        datapreset) plugin_dir='mod/data/preset' ;;
+        ltisource) plugin_dir='mod/lti/source' ;;
+        datafield) plugin_dir='mod/data/field' ;;
+        message) plugin_dir='message/output' ;;
+        booktool) plugin_dir='mod/book/tool' ;;
+        calendartype) plugin_dir='calendar/type' ;;
+        format) plugin_dir='course/format' ;;
+        coursereport) plugin_dir='course/report' ;;
+        mlbackend) plugin_dir='lib/mlbackend' ;;
+        search) plugin_dir='search/engine' ;;
+        antivirus) plugin_dir='lib/antivirus' ;;
+        qtype) plugin_dir='question/type' ;;
+        qbank) plugin_dir='question/bank' ;;
+        contenttype) plugin_dir='contentbank/contenttype' ;;
+        h5plib) plugin_dir='h5p/h5plib' ;;
+        media) plugin_dir='media/player' ;;
+        cachestore) plugin_dir='cache/stores' ;;
+        gradereport) plugin_dir='grade/report' ;;
+        gradeimport) plugin_dir='grade/import' ;;
+        gradeexport) plugin_dir='grade/export' ;;
+        mnetservice) plugin_dir='mnet/service' ;;
+        cachelock) plugin_dir='cache/locks' ;;
+        plagiarism) plugin_dir='plagiarism' ;;
+        repository) plugin_dir='repository' ;;
+        tool) plugin_dir='admin/tool' ;;
+        editor) plugin_dir='lib/editor' ;;
+        dataformat) plugin_dir='dataformat' ;;
+        webservice) plugin_dir='webservice' ;;
+        portfolio) plugin_dir='portfolio' ;;
+        filter) plugin_dir='filter' ;;
+        report) plugin_dir='report' ;;
+        block) plugin_dir='blocks' ;;
+        local) plugin_dir='local' ;;
+        enrol) plugin_dir='enrol' ;;
+        theme) plugin_dir='theme' ;;
+        auth) plugin_dir='auth' ;;
+        mod) plugin_dir='mod' ;;
+        *)
+            >&2 echo "ERROR: ${plugin_type} is not a valid Moodle plugin type."
+            exit 1
+            ;;
+    esac
     printf '%s/%s/%s\n' "${MOODLE_APP:-/var/www/html}" "$plugin_dir" "$plugin_name"
 }
 
@@ -197,8 +197,8 @@ while getopts ":fp:m:" opt; do
 done
 shift $((OPTIND - 1))
 
-if (( OPTIND == 1 )); then
-    echo -e "No check. Use an option:\n"
+if [ "$OPTIND" -eq 1 ]; then
+    printf 'No check. Use an option:\\n\\n'
     usage
     exit 0
 fi
@@ -218,7 +218,10 @@ if [ -z "${MOODLE_RELEASE:-}" ]; then
             branch_version=${branch_version%_STABLE}
             moodle_major="${branch_version%??}"
             moodle_minor="${branch_version#?}"
-            moodle_minor="$((10#$moodle_minor))"
+            case "$moodle_minor" in
+                0*) moodle_minor=${moodle_minor#0} ;;
+            esac
+            [ -n "$moodle_minor" ] || moodle_minor=0
             MOODLE_RELEASE="${moodle_major}.${moodle_minor}"
             ;;
     esac
@@ -231,7 +234,7 @@ export MOODLE_RELEASE
 core_version=$(get_moodle_core_version)
 echo "Moodle core version: ${core_version}"
 
-IFS=',' read -r -a comma_plugins <<< "${moodle_plugin_list// /,}"
-for plugin in "${comma_plugins[@]}"; do
+plugin_list=$(printf '%s' "$moodle_plugin_list" | tr ', ' ' ')
+for plugin in $plugin_list; do
     [ -n "$plugin" ] && install_plugin "$plugin"
 done
