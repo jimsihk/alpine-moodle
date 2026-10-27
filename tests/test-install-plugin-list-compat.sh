@@ -1,6 +1,5 @@
 #!/bin/sh
-# Compare the observable behavior of the v3 Bash installer and the v4 /bin/sh
-# installer for inputs that should be unaffected by the shell refactor.
+# Compare observable behavior of the v3 Bash installer and v4 /bin/sh installer.
 set -eu
 
 if [ "$#" -ne 2 ]; then
@@ -16,7 +15,7 @@ mkdir -p "$tmp/bin" "$tmp/moodle"
 : > "$tmp/moodle/version.php"
 cat > "$tmp/bin/php" <<'PHP'
 #!/bin/sh
-# The installer only needs the core version in these tests.
+# The tested paths only need the Moodle core version.
 printf '500\n'
 PHP
 chmod +x "$tmp/bin/php"
@@ -24,9 +23,21 @@ chmod +x "$tmp/bin/php"
 run_case() {
     name=$1
     script=$2
-    shift 2
+    scenario=$3
     set +e
-    env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" "$@" "$script" >"$tmp/$name.out" 2>"$tmp/$name.err"
+    case "$scenario" in
+        no-options)
+            env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" "$script" ;;
+        empty-plugin-list)
+            env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" MOODLE_RELEASE=5.0 "$script" -p '' ;;
+        malformed-component)
+            env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" MOODLE_RELEASE=5.0 "$script" -p invalidcomponent ;;
+        unknown-plugin-type)
+            env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" MOODLE_RELEASE=5.0 "$script" -p bogus_test ;;
+        release-not-detectable)
+            env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" "$script" -p bogus_test ;;
+        *) echo "Unknown test case: $scenario" >&2; exit 2 ;;
+    esac >"$tmp/$name.out" 2>"$tmp/$name.err"
     status=$?
     set -e
     printf '%s\n' "$status" > "$tmp/$name.status"
@@ -34,13 +45,12 @@ run_case() {
 
 compare_case() {
     name=$1
-    shift
-    run_case "v3-$name" "$baseline" "$@"
-    run_case "v4-$name" "$candidate" "$@"
+    run_case "v3-$name" "$baseline" "$name"
+    run_case "v4-$name" "$candidate" "$name"
     if ! cmp -s "$tmp/v3-$name.status" "$tmp/v4-$name.status" ||
        ! cmp -s "$tmp/v3-$name.out" "$tmp/v4-$name.out" ||
        ! cmp -s "$tmp/v3-$name.err" "$tmp/v4-$name.err"; then
-        echo "FAIL: v3/v4 behavior differs for case '$name'"
+        echo "FAIL: v3/v4 behavior differs for '$name'"
         diff -u "$tmp/v3-$name.status" "$tmp/v4-$name.status" || :
         diff -u "$tmp/v3-$name.out" "$tmp/v4-$name.out" || :
         diff -u "$tmp/v3-$name.err" "$tmp/v4-$name.err" || :
@@ -49,15 +59,14 @@ compare_case() {
     echo "PASS: v3/v4 output and exit status match for '$name'"
 }
 
-# Syntax checks use each script's intended interpreter.
 bash -n "$baseline"
 sh -n "$candidate"
 echo "PASS: v3 Bash and v4 /bin/sh syntax checks"
 
 compare_case no-options
-compare_case empty-plugin-list MOODLE_RELEASE=5.0 -p ''
-compare_case malformed-component MOODLE_RELEASE=5.0 -p invalidcomponent
-compare_case unknown-plugin-type MOODLE_RELEASE=5.0 -p bogus_test
-compare_case release-not-detectable -p bogus_test
+compare_case empty-plugin-list
+compare_case malformed-component
+compare_case unknown-plugin-type
+compare_case release-not-detectable
 
 echo "All installer compatibility tests passed."
