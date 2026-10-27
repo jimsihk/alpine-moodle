@@ -29,6 +29,6 @@ jobs:
         run: |
           git show origin/fix/672-marketplace-api-v3:rootfs/usr/libexec/moodle/install-plugin-list > "$RUNNER_TEMP/install-plugin-list-v3"
           chmod +x "$RUNNER_TEMP/install-plugin-list-v3"
-          tests/test-install-plugin-list-compat.sh \
+          sh tests/test-install-plugin-list-compat.sh \
             "$RUNNER_TEMP/install-plugin-list-v3" \
             "$GITHUB_WORKSPACE/rootfs/usr/libexec/moodle/install-plugin-list"
