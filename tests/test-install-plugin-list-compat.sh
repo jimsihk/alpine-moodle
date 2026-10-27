@@ -21,42 +21,41 @@ PHP
 chmod +x "$tmp/bin/php"
 
 run_case() {
-    name=$1
-    script=$2
+    case_name=$1
+    script_path=$2
     scenario=$3
-    set +e
+    # Run each installer in a subshell so its exit status can be captured
+    # without changing the harness's errexit behavior.
     case "$scenario" in
         no-options)
-            env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" "$script" ;;
+            if env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" "$script_path" >"$tmp/$case_name.out" 2>"$tmp/$case_name.err"; then status=0; else status=$?; fi ;;
         empty-plugin-list)
-            env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" MOODLE_RELEASE=5.0 "$script" -p '' ;;
+            if env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" MOODLE_RELEASE=5.0 "$script_path" -p '' >"$tmp/$case_name.out" 2>"$tmp/$case_name.err"; then status=0; else status=$?; fi ;;
         malformed-component)
-            env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" MOODLE_RELEASE=5.0 "$script" -p invalidcomponent ;;
+            if env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" MOODLE_RELEASE=5.0 "$script_path" -p invalidcomponent >"$tmp/$case_name.out" 2>"$tmp/$case_name.err"; then status=0; else status=$?; fi ;;
         unknown-plugin-type)
-            env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" MOODLE_RELEASE=5.0 "$script" -p bogus_test ;;
+            if env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" MOODLE_RELEASE=5.0 "$script_path" -p bogus_test >"$tmp/$case_name.out" 2>"$tmp/$case_name.err"; then status=0; else status=$?; fi ;;
         release-not-detectable)
-            env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" "$script" -p bogus_test ;;
-        *) echo "Unknown test case: $scenario" >&2; exit 2 ;;
-    esac >"$tmp/$name.out" 2>"$tmp/$name.err"
-    status=$?
-    set -e
-    printf '%s\n' "$status" > "$tmp/$name.status"
+            if env PATH="$tmp/bin:$PATH" MOODLE_APP="$tmp/moodle" "$script_path" -p bogus_test >"$tmp/$case_name.out" 2>"$tmp/$case_name.err"; then status=0; else status=$?; fi ;;
+        *) echo "Unknown test case: $scenario" >&2; return 2 ;;
+    esac
+    printf '%s\n' "$status" > "$tmp/$case_name.status"
 }
 
 compare_case() {
-    name=$1
-    run_case "v3-$name" "$baseline" "$name"
-    run_case "v4-$name" "$candidate" "$name"
-    if ! cmp -s "$tmp/v3-$name.status" "$tmp/v4-$name.status" ||
-       ! cmp -s "$tmp/v3-$name.out" "$tmp/v4-$name.out" ||
-       ! cmp -s "$tmp/v3-$name.err" "$tmp/v4-$name.err"; then
-        echo "FAIL: v3/v4 behavior differs for '$name'"
-        diff -u "$tmp/v3-$name.status" "$tmp/v4-$name.status" || :
-        diff -u "$tmp/v3-$name.out" "$tmp/v4-$name.out" || :
-        diff -u "$tmp/v3-$name.err" "$tmp/v4-$name.err" || :
+    case_name=$1
+    run_case "v3-$case_name" "$baseline" "$case_name"
+    run_case "v4-$case_name" "$candidate" "$case_name"
+    if ! cmp -s "$tmp/v3-$case_name.status" "$tmp/v4-$case_name.status" ||
+       ! cmp -s "$tmp/v3-$case_name.out" "$tmp/v4-$case_name.out" ||
+       ! cmp -s "$tmp/v3-$case_name.err" "$tmp/v4-$case_name.err"; then
+        echo "FAIL: v3/v4 behavior differs for '$case_name'"
+        diff -u "$tmp/v3-$case_name.status" "$tmp/v4-$case_name.status" || :
+        diff -u "$tmp/v3-$case_name.out" "$tmp/v4-$case_name.out" || :
+        diff -u "$tmp/v3-$case_name.err" "$tmp/v4-$case_name.err" || :
         return 1
     fi
-    echo "PASS: v3/v4 output and exit status match for '$name'"
+    echo "PASS: v3/v4 output and exit status match for '$case_name'"
 }
 
 bash -n "$baseline"
