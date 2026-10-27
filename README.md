@@ -37,6 +37,8 @@ Repository: https://github.com/jimsihk/alpine-moodle
 
 Moodle version and package dependencies are monitored and automatically updated through pull requests by Renovate: https://github.com/renovatebot/renovate
 
+Alpine package updates use Renovate's native `apk` datasource rather than Repology. Repology lookups were failing in the Renovate environment, so using `apk` lets Renovate resolve package versions directly from Alpine's APK repositories and avoids relying on the external Repology service.
+
 When Renovate updates the `jimsihk/alpine-php-nginx` base image in `Dockerfile`, GitHub Actions also refreshes the Alpine package pins in that same PR if the image moves to a new Alpine major/minor series.
 
 [![Nightly Build](https://github.com/jimsihk/alpine-moodle/actions/workflows/nightly.yml/badge.svg)](https://github.com/jimsihk/alpine-moodle/actions/workflows/nightly.yml)
@@ -94,7 +96,7 @@ Define the ENV variables in docker-compose.yml file
 | LANGUAGE                    | en_US:en             |                                                                                                                                                                 |
 | SITE_URL                    | http://localhost     | Sets the public site URL                                                                                                                                        |
 | SSLPROXY                    | false                | Disable SSL proxy to avoid site loop. e.g. Cloudflare                                                                                                           |
-| DB_TYPE                     | pgsql                | mysqli - pgsql - mariadb                                                                                                                                        |
+| DB_TYPE                     | pgsql                | mysqli - pgsql - mariadb                                                                                                                                         |
 | DB_HOST                     | postgres             | Database hostname e.g. database container name                                                                                                                  |
 | DB_PORT                     | 5432                 | PostgresSQL=5432 - MySQL/MariaDB=3306                                                                                                                           |
 | DB_NAME                     | moodle               | Database name                                                                                                                                                   |
@@ -122,24 +124,24 @@ Define the ENV variables in docker-compose.yml file
 | MOODLE_MAIL_NOREPLY_ADDRESS | noreply@localhost    |                                                                                                                                                                 |
 | MOODLE_MAIL_PREFIX          | [moodle]             |                                                                                                                                                                 |
 | memory_limit                | 128M                 | Maximum amount of memory that a PHP script is allowed to allocate _(default value inherited from base image)_                                                   |
-| client_max_body_size        | 50M                  | Sets the maximum allowed size of the client request body, specified in the “Content-Length” request header field                                                |
+| client_max_body_size        | 50M                  | Sets the maximum allowed size of the client request body, specified in the “Content-Length” request header                                                |
 | post_max_size               | 50M                  | Max size of post data allowed. This setting also affects file upload. To upload large files, this value must be larger than upload_max_filesize                 |
 | upload_max_filesize         | 50M                  | Maximum size of an uploaded file.                                                                                                                               |
-| max_input_vars              | 5000                 | Maximum number of input variables allowed per request, set to at least 5000                                                                                     |
+| max_input_vars              | 5000                 | Maximum number of input variables allowed per request, set to at least 5000                                                                                    |
 | opcache_jit_buffer_size     | 64M                  | Amount of shared memory to reserve for compiled JIT code, set to 0 to disable the JIT                                                                           |
 | opcache_jit                 | 1235                 | Configure the JIT mode _(default value inherited from base image)_                                                                                              |
 | opcache_memory_consumption  | 128                  | Size of the shared memory storage used by OPcache in megabytes _(default value inherited from base image)_                                                      |
-| SESSION_CACHE_TYPE          |                      | Optionally sets shared session cache store: memcached, redis, database _(leave it blank to keep unchanged)_                                                     |
+| SESSION_CACHE_TYPE          |                      | Optionally sets shared session cache store: memcached, redis, database _(leave it blank to keep unchanged)_                                                    |
 | SESSION_CACHE_HOST          |                      | Hostname of the external cache store, required for memcached and redis                                                                                          |
 | SESSION_CACHE_PORT          |                      | Memcached=11211, Redis=6379, required for memcached and redis                                                                                                   |
-| SESSION_CACHE_PREFIX        | mdl                  | Cache prefix                                                                                                                                                    |
-| SESSION_CACHE_AUTH          |                      | Authentication key for cache store, may be required for redis                                                                                                   |
-| AUTO_UPDATE_MOODLE          | true                 | Set to false to disable performing update of Moodle (e.g. plugins) at docker start                                                                              |
+| SESSION_CACHE_PREFIX        | mdl                  | Cache prefix                                                                                                                                                   |
+| SESSION_CACHE_AUTH          |                      | Authentication key for cache store, may be required for redis                                                                                                 |
+| AUTO_UPDATE_MOODLE          | true                 | Set to false to disable performing update of Moodle (e.g. plugins) at docker start                                                                            |
 | UPDATE_MOODLE_CODE          | true                 | Set to false to disable auto download latest patch of Moodle core code, only effective if AUTO_UPDATE_MOODLE is true or built with ARG_ENABLE_GIT_CLONE as true |
 | DISABLE_WEB_INSTALL_PLUGIN  | false                | Set to true to disable plugin installation via site admin UI, could be useful to avoid image outsync with HA setting                                            |
-| MAINT_STATUS_KEYWORD        | Status: enabled      | Keyword for detecting Moodle maintenance status when running admin/cli/maintenance.php, language following the Moodle site default language                     |
+| MAINT_STATUS_KEYWORD        | Status: enabled      | Keyword for detecting Moodle maintenance status when running admin/cli/maintenance.php, language following the Moodle site default language                    |
 | LOCAL_CACHE_DIRECTORY       |                      | Set the path to a local fast filesystem for Moodle local caching that no need to be shared with other instances                                                 |
-| SKIP_MOODLE_CONFIG          | false                | Set to true to skip the Moodle configuration script                                                                                                             |
+| SKIP_MOODLE_CONFIG          | false                | Set to true to skip the Moodle configuration script                                                                                                            |
 
 _More settings on PHP and NGINX can refer to the base image https://github.com/jimsihk/alpine-php-nginx/blob/dev/README.md_
 
