@@ -1,0 +1,34 @@
+name: Installer shell compatibility
+
+on:
+  pull_request:
+    branches: ["dev"]
+    paths:
+      - "rootfs/usr/libexec/moodle/install-plugin-list"
+      - "tests/test-install-plugin-list-compat.sh"
+      - ".github/workflows/test-installer-compat.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare-v3-v4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout v4 candidate
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Fetch v3 baseline
+        run: git fetch --no-tags origin fix/672-marketplace-api-v3
+
+      - name: Compare v3 and v4 installer behavior
+        run: |
+          git show origin/fix/672-marketplace-api-v3:rootfs/usr/libexec/moodle/install-plugin-list > "$RUNNER_TEMP/install-plugin-list-v3"
+          chmod +x "$RUNNER_TEMP/install-plugin-list-v3"
+          tests/test-install-plugin-list-compat.sh \
+            "$RUNNER_TEMP/install-plugin-list-v3" \
+            "$GITHUB_WORKSPACE/rootfs/usr/libexec/moodle/install-plugin-list"
