@@ -37,6 +37,8 @@ Repository: https://github.com/jimsihk/alpine-moodle
 
 Moodle version and package dependencies are monitored and automatically updated through pull requests by Renovate: https://github.com/renovatebot/renovate
 
+Alpine package updates use Renovate's native `apk` datasource rather than Repology. Repology lookups were failing in the Renovate environment, so using `apk` lets Renovate resolve package versions directly from Alpine's APK repositories and avoids relying on the external Repology service.
+
 When Renovate updates the `jimsihk/alpine-php-nginx` base image in `Dockerfile`, GitHub Actions also refreshes the Alpine package pins in that same PR if the image moves to a new Alpine major/minor series.
 
 [![Nightly Build](https://github.com/jimsihk/alpine-moodle/actions/workflows/nightly.yml/badge.svg)](https://github.com/jimsihk/alpine-moodle/actions/workflows/nightly.yml)
