@@ -48,6 +48,10 @@ install_path() {
     local plugin_name=$2
     local plugin_dir
 
+    # Keep this map aligned with Moodle's official plugin-type list:
+    # https://moodledev.io/docs/5.3/apis/plugintypes
+    # Paths are Moodle-root-relative; plugin type names are not always enough to
+    # derive their directory (many plugin types are nested under their owning module).
     declare -A dirs=(
         [tinymce]='lib/editor/tinymce/plugins'
         [tiny]='lib/editor/tiny/plugins'
@@ -81,6 +85,9 @@ install_path() {
         [search]='search/engine'
         [antivirus]='lib/antivirus'
         [qtype]='question/type'
+        [qbank]='question/bank'
+        [contenttype]='contentbank/contenttype'
+        [h5plib]='h5p/h5plib'
         [media]='media/player'
         [cachestore]='cache/stores'
         [gradereport]='grade/report'
