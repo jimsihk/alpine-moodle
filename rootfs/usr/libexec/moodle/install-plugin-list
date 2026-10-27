@@ -198,7 +198,7 @@ done
 shift $((OPTIND - 1))
 
 if [ "$OPTIND" -eq 1 ]; then
-    printf 'No check. Use an option:\\n\\n'
+    printf 'No check. Use an option:\n\n'
     usage
     exit 0
 fi
