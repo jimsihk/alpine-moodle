@@ -2,7 +2,7 @@ name: Build and test PR
 
 on:
   pull_request:
-    branches: ["dev"]
+    branches: ["dev", "fix/672-marketplace-api-v3"]
     paths-ignore:
       - README.md
 
@@ -111,7 +111,11 @@ jobs:
 
           test_plugin_installation "Marketplace plugin installation without token" "marketplace-no-token" "report_benchmark,theme_moove" "false"
 
-          test_plugin_installation "Marketplace plugin installation with token when configured" "marketplace-with-token" "report_benchmark,theme_moove" "false"
+          if [ -n "$MOODLE_MARKETPLACE_TOKEN" ]; then
+            test_plugin_installation "Marketplace plugin installation with token" "marketplace-with-token" "report_benchmark,theme_moove" "false"
+          else
+            echo "MOODLE_MARKETPLACE_TOKEN is not configured; authenticated plugin test skipped."
+          fi
 
           test_plugin_installation "Forced plugin compatibility installation" "forced-plugin-compatibility" "report_benchmark,enrol_easy" "true"
 
