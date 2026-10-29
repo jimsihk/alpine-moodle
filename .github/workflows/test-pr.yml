@@ -2,7 +2,7 @@ name: Build and test PR
 
 on:
   pull_request:
-    branches: ["dev"]
+    branches: ["dev", "fix/672-marketplace-api-v3"]
     paths-ignore:
       - README.md
 
@@ -83,29 +83,45 @@ jobs:
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
-      - name: Test Plugin Installation Script
+      - name: Test Plugin Installation and Runtime
         if: matrix.test == 'standard'
         env:
-          MOODLE_MARKETPLACE_TOKEN: '${{ secrets.MOODLE_MARKETPLACE_TOKEN }}'
+          MOODLE_MARKETPLACE_TOKEN: ${{ secrets.MOODLE_MARKETPLACE_TOKEN }}
         run: |
-          echo '###############################'
-          echo "Test - Marketplace plugin installation with token..."
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-marketplace-with-token
-          export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
-          export ARG_ALLOW_INCOMPATIBLE_PLUGIN=false
-          docker compose --file docker-compose.test.yml build --no-cache app
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          docker compose --file docker-compose.test.yml down --remove-orphans
+          set -e
 
-          echo '#'
-          echo '###############################'
-          echo "Test - Plugin installation with forced compatibility..."
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-forced-plugin-compatibility
-          export ARG_MOODLE_PLUGIN_LIST='report_benchmark,enrol_easy'
-          export ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
-          docker compose --file docker-compose.test.yml build --no-cache app
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          docker compose --file docker-compose.test.yml down --remove-orphans
+          test_plugin_installation() {
+            local label="$1"
+            local image_suffix="$2"
+            local plugins="$3"
+            local allow_incompatible="$4"
+
+            echo "###############################"
+            echo "Test - ${label}"
+            export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}-${image_suffix}"
+            export ARG_MOODLE_PLUGIN_LIST="$plugins"
+            export ARG_ALLOW_INCOMPATIBLE_PLUGIN="$allow_incompatible"
+
+            docker compose --file docker-compose.test.yml build --no-cache app
+            docker compose --file docker-compose.test.yml up -d app
+            docker compose --file docker-compose.test.yml run --rm --no-deps sut
+            docker compose --file docker-compose.test.yml exec -T app php /tmp/verify-installed-plugins.php ${plugins//,/ }
+            docker compose --file docker-compose.test.yml down --remove-orphans
+          }
+
+          configured_token="$MOODLE_MARKETPLACE_TOKEN"
+          export MOODLE_MARKETPLACE_TOKEN=""
+          test_plugin_installation "Marketplace plugin installation without token" "marketplace-no-token" "report_benchmark,theme_moove" "false"
+
+          if [ -n "$configured_token" ]; then
+            export MOODLE_MARKETPLACE_TOKEN="$configured_token"
+            test_plugin_installation "Marketplace plugin installation with token" "marketplace-with-token" "report_benchmark,theme_moove" "false"
+          else
+            echo "MOODLE_MARKETPLACE_TOKEN is not configured; authenticated plugin test skipped."
+          fi
+          unset MOODLE_MARKETPLACE_TOKEN configured_token
+
+          test_plugin_installation "Forced plugin compatibility installation" "forced-plugin-compatibility" "report_benchmark,enrol_easy" "true"
 
       - name: Test Bind Volume Mount
         if: matrix.test == 'volume1'
@@ -115,8 +131,8 @@ jobs:
           export LOCAL_PATH='./tmpdata/'"${{ matrix.test }}"
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
-          export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
-          export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
+          export ARG_MOODLE_GIT_BRANCH="$(grep -E '^ARG[[:space:]]+ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2- | tr -d "'")"
+          export ARG_MOODLE_GIT_COMMIT="$(grep -E '^ARG[[:space:]]+ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2- | tr -d "'")"
           export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
           export ARG_ALLOW_INCOMPATIBLE_PLUGIN=false
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
@@ -134,17 +150,14 @@ jobs:
           mkdir -p "${LOCAL_PATH}"/moodledata "${LOCAL_PATH}"/moodlehtml
           chmod -R 777 "${LOCAL_PATH}"
           export TEST_IMAGE_NAME=${{ github.repository }}:${{ env.BASELINE_IMAGE_TAG }}
-          #export ARG_MOODLE_GIT_BRANCH='MOODLE_405_STABLE'
-          #export ARG_MOODLE_GIT_COMMIT='a57387fe2d8faa2e6fa36246f4dc59825c307e7f'
-          #export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-old
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           echo "${LOCAL_PATH}"
           ls -l "${LOCAL_PATH}"
 
           export AUTO_UPDATE_MOODLE=true
           export UPDATE_MOODLE_CODE=true
-          export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
-          export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
+          export ARG_MOODLE_GIT_BRANCH="$(grep -E '^ARG[[:space:]]+ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2- | tr -d "'")"
+          export ARG_MOODLE_GIT_COMMIT="$(grep -E '^ARG[[:space:]]+ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2- | tr -d "'")"
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
 
@@ -209,7 +222,7 @@ jobs:
 
   final:
     if: always()
-    needs: 
+    needs:
       - test
     runs-on: ubuntu-latest
     steps:
