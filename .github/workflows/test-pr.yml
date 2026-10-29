@@ -109,13 +109,17 @@ jobs:
             docker compose --file docker-compose.test.yml down --remove-orphans
           }
 
+          configured_token="$MOODLE_MARKETPLACE_TOKEN"
+          export MOODLE_MARKETPLACE_TOKEN=""
           test_plugin_installation "Marketplace plugin installation without token" "marketplace-no-token" "report_benchmark,theme_moove" "false"
 
-          if [ -n "$MOODLE_MARKETPLACE_TOKEN" ]; then
+          if [ -n "$configured_token" ]; then
+            export MOODLE_MARKETPLACE_TOKEN="$configured_token"
             test_plugin_installation "Marketplace plugin installation with token" "marketplace-with-token" "report_benchmark,theme_moove" "false"
           else
             echo "MOODLE_MARKETPLACE_TOKEN is not configured; authenticated plugin test skipped."
           fi
+          unset MOODLE_MARKETPLACE_TOKEN configured_token
 
           test_plugin_installation "Forced plugin compatibility installation" "forced-plugin-compatibility" "report_benchmark,enrol_easy" "true"
 
