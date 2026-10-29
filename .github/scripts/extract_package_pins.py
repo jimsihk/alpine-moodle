@@ -5,7 +5,7 @@ import re
 
 dockerfile = pathlib.Path("Dockerfile").read_text().splitlines()
 comment_pattern = re.compile(
-    r"^# renovate: datasource=repology depName=alpine_[0-9]+_[0-9]+/(?P<package_name>[^\s]+) versioning=loose$"
+    r"^# renovate: datasource=apk depName=(?P<package_name>[^\s]+) versioning=loose$"
 )
 arg_pattern = re.compile(r'^ARG (?P<arg_name>[A-Z0-9_]+)="[^"]*"$')
 

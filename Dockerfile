@@ -1,17 +1,17 @@
 # syntax=docker/dockerfile:1
 ARG ARCH=quay.io/
-FROM ${ARCH}jimsihk/alpine-php-nginx:84.25.0
+FROM ${ARCH}jimsihk/alpine-php-nginx:84.27.1
 
 LABEL Description="Lightweight Moodle container with NGINX & PHP-FPM based on Alpine Linux." \
       Maintainer="99048231+jimsihk@users.noreply.github.com"
 
-# renovate: datasource=repology depName=alpine_3_24/dcron versioning=loose
+# renovate: datasource=apk depName=dcron versioning=loose
 ARG DCRON_VERSION="=4.6-r0"
-# renovate: datasource=repology depName=alpine_3_24/libcap versioning=loose
+# renovate: datasource=apk depName=libcap versioning=loose
 ARG LIBCAP_VERSION="=2.78-r0"
-# renovate: datasource=repology depName=alpine_3_24/git versioning=loose
+# renovate: datasource=apk depName=git versioning=loose
 ARG GIT_VERSION="=2.54.0-r0"
-# renovate: datasource=repology depName=alpine_3_24/bash versioning=loose
+# renovate: datasource=apk depName=bash versioning=loose
 ARG BASH_VERSION="=5.3.9-r1"
 
 ARG ARG_WEB_PATH='/var/www/html'
@@ -45,7 +45,7 @@ USER nobody
 ARG ARG_MOODLE_GIT_URL='https://github.com/moodle/moodle.git'
 ARG ARG_MOODLE_GIT_BRANCH='MOODLE_500_STABLE'
 # renovate: datasource=git-refs depName=https://github.com/moodle/moodle branch=MOODLE_500_STABLE
-ARG ARG_MOODLE_GIT_COMMIT='f9cdcde93ebb31e88d3626c2c2d4cf314573a799'
+ARG ARG_MOODLE_GIT_COMMIT='744cc0c19013e7be831dca24fafd6501d7eb8348'
 ENV MOODLE_GIT_URL=${ARG_MOODLE_GIT_URL} \
     MOODLE_GIT_BRANCH=${ARG_MOODLE_GIT_BRANCH} \
     MOODLE_GIT_COMMIT=${ARG_MOODLE_GIT_COMMIT} \
