@@ -25,6 +25,12 @@ ENV ENABLE_GIT_CLONE=${ARG_ENABLE_GIT_CLONE}
 USER root
 COPY --chown=nobody rootfs/ /
 
+# Compatibility for the current base-image tag. Remove this fallback once the
+# base image includes the pre-PHP server configuration extension point.
+RUN if ! grep -Fq 'include /etc/nginx/conf.d/default/server/pre-php/*.conf;' /etc/nginx/nginx.conf; then \\
+    sed -i '/# Pass the PHP scripts to PHP-FPM listening on php-fpm.sock/i\\        include /etc/nginx/conf.d/default/server/pre-php/*.conf;' /etc/nginx/nginx.conf; \\
+fi
+
 # crond needs root, so install dcron and cap package and set the capabilities
 # on dcron binary https://github.com/inter169/systs/blob/master/alpine/crond/README.md
 RUN apk add --no-cache \
