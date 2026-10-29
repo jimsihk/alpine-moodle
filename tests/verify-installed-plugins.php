@@ -24,8 +24,7 @@ foreach (array_slice($argv, 1) as $component) {
         continue;
     }
 
-    [, $type, $name] = $matches;
-    $info = $manager->get_plugin_info($type, $name);
+    $info = $manager->get_plugin_info($component);
 
     if ($info === null) {
         fwrite(STDERR, "FAIL: {$component} is not discoverable by Moodle's plugin manager\n");
