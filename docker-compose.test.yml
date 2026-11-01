@@ -10,6 +10,8 @@ services:
     environment:
       - SITE_URL=http://app:8080
       - MOODLE_SITENAME=Dockerized_Moodle
+      - MOODLE_USERNAME=${MOODLE_USERNAME:-moodleuser}
+      - MOODLE_PASSWORD=${MOODLE_PASSWORD:-PLEASE_CHANGEME}
       - SESSION_CACHE_TYPE=redis
       - SESSION_CACHE_HOST=redis
       - SESSION_CACHE_PORT=6379
@@ -56,6 +58,11 @@ services:
     image: alpine:latest
     depends_on:
       - app
-    command: /tmp/run_tests.sh
+    command: sh -c "apk add --no-cache python3 && /tmp/run_tests.sh"
+    environment:
+      - MOODLE_USERNAME=${MOODLE_USERNAME:-moodleuser}
+      - MOODLE_PASSWORD=${MOODLE_PASSWORD:-PLEASE_CHANGEME}
     volumes:
       - "./run_tests.sh:/tmp/run_tests.sh:ro"
+      - "./run_tests.py:/tmp/run_tests.py:ro"
+
