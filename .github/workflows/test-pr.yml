@@ -101,12 +101,16 @@ jobs:
             export TEST_IMAGE_NAME="${{ needs.prepare.outputs.tag }}-${image_suffix}"
             export ARG_MOODLE_PLUGIN_LIST="$plugins"
             export ARG_ALLOW_INCOMPATIBLE_PLUGIN="$allow_incompatible"
+            # The image contains plugin code, but Moodle must run its database
+            # upgrade to register the plugins as installed before verification.
+            export AUTO_UPDATE_MOODLE=true
 
             docker compose --file docker-compose.test.yml build --no-cache app
             docker compose --file docker-compose.test.yml up -d app
             docker compose --file docker-compose.test.yml run --rm --no-deps sut
             docker compose --file docker-compose.test.yml exec -T app php /tmp/verify-installed-plugins.php ${plugins//,/ }
             docker compose --file docker-compose.test.yml down --remove-orphans
+            unset AUTO_UPDATE_MOODLE
           }
 
           configured_token="$MOODLE_MARKETPLACE_TOKEN"
