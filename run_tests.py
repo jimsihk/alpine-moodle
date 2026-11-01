@@ -15,13 +15,12 @@ BASE_URL = "http://app:8080/"
 USERNAME = os.environ.get("MOODLE_USERNAME", "moodleuser")
 PASSWORD = os.environ.get("MOODLE_PASSWORD", "PLEASE_CHANGEME")
 
-# These are the plugins installed by the image itself:
-# two cache-store plugins from download-moodle-code and the requested test plugin.
-SELF_INSTALLED_PLUGINS = (
+# These plugins are installed by download-moodle-code in every image.
+IMAGE_INSTALLED_PLUGINS = (
     "cachestore_redissentinel",
     "cachestore_memcached",
-    "report_benchmark",
 )
+OPTIONAL_TEST_PLUGIN = "report_benchmark"
 
 ERROR_PATTERNS = (
     r"Exception\s*-",
@@ -75,7 +74,7 @@ def main():
     opener = build_opener(HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
     print("Test: authenticate to Moodle")
-    status, login_url, login_page = request(opener, "login/index.php")
+    status, _, login_page = request(opener, "login/index.php")
     if status != 200:
         fail(f"Login page returned HTTP {status}")
 
@@ -116,26 +115,34 @@ def main():
 
     installed = [
         component
-        for component in SELF_INSTALLED_PLUGINS
+        for component in IMAGE_INSTALLED_PLUGINS
         if re.search(r"(?<![A-Za-z0-9_])" + re.escape(component) + r"(?![A-Za-z0-9_])", plugins_page)
     ]
-    print("Self-installed plugins:")
+    print("Image-installed plugins:")
     for component in installed:
         print(f"  - {component}")
 
-    missing = sorted(set(SELF_INSTALLED_PLUGINS) - set(installed))
+    missing = sorted(set(IMAGE_INSTALLED_PLUGINS) - set(installed))
     if missing:
         fail("Expected image-installed plugin(s) missing from Moodle plugin overview: " + ", ".join(missing))
-    print("PASS: all expected image-installed plugins are listed")
+    print("PASS: all image-installed plugins are listed")
 
-    print("Test: open report_benchmark")
-    status, report_url, report_page = request(opener, "report/benchmark/index.php")
-    if status != 200 or urlparse(report_url).path.startswith("/login/"):
-        fail(f"Could not open report_benchmark (HTTP {status}, final URL {report_url})")
-    ensure_no_moodle_error(report_page, "/report/benchmark/index.php")
-    if "benchmark" not in report_page.lower():
-        fail("Benchmark report page did not contain expected benchmark content")
-    print("PASS: report_benchmark opened without Moodle/PHP errors")
+    # report_benchmark is added only in the dedicated plugin-install build.
+    # Later update and bind-volume test variants intentionally use images without it.
+    if re.search(
+        r"(?<![A-Za-z0-9_])" + re.escape(OPTIONAL_TEST_PLUGIN) + r"(?![A-Za-z0-9_])",
+        plugins_page,
+    ):
+        print("Test: open report_benchmark")
+        status, report_url, report_page = request(opener, "report/benchmark/index.php")
+        if status != 200 or urlparse(report_url).path.startswith("/login/"):
+            fail(f"Could not open report_benchmark (HTTP {status}, final URL {report_url})")
+        ensure_no_moodle_error(report_page, "/report/benchmark/index.php")
+        if "benchmark" not in report_page.lower():
+            fail("Benchmark report page did not contain expected benchmark content")
+        print("PASS: report_benchmark opened without Moodle/PHP errors")
+    else:
+        print("SKIP: report_benchmark is not installed in this test image")
 
 
 if __name__ == "__main__":
