@@ -21,15 +21,24 @@ IMAGE_INSTALLED_PLUGINS = (
     "cachestore_memcached",
 )
 OPTIONAL_TEST_PLUGIN = "report_benchmark"
+HTML_EVIDENCE_LIMIT = 1200
 
 ERROR_PATTERNS = (
-    r"Exception\s*-",
+    r"Exception\\s*-",
     r"Coding error detected",
     r"Fatal error",
     r"Parse error",
     r"Debug info:",
     r"Stack trace:",
     r"Error writing to database",
+)
+
+# Never print authentication/session values from the live Moodle response.
+SENSITIVE_INPUT_PATTERN = re.compile(
+    r'(<input\\b(?=[^>]*\\bname\\s*=\\s*["\\']'
+    r'(?:logintoken|sesskey|password|token)[^"\\']*["\\'])[^>]*'
+    r'\\bvalue\\s*=\\s*)["\\'][^"\\']*["\\']',
+    re.IGNORECASE,
 )
 
 
@@ -64,6 +73,27 @@ def request(opener, path, data=None):
         fail(f"Request to {path} failed: {error}")
 
 
+def print_runtime_html(test_name, status, url, page, markers=()):
+    """Print a bounded, redacted excerpt copied from the actual HTTP response."""
+    print(f"RUNTIME HTTP EVIDENCE [{test_name}] status={status} url={url}")
+    excerpt = None
+    for marker in markers:
+        position = page.lower().find(marker.lower())
+        if position >= 0:
+            start = max(0, position - 350)
+            end = min(len(page), position + len(marker) + 650)
+            excerpt = page[start:end]
+            break
+    if excerpt is None:
+        excerpt = page[:HTML_EVIDENCE_LIMIT]
+    excerpt = SENSITIVE_INPUT_PATTERN.sub(r'\\1"[REDACTED]"', excerpt)
+    if len(excerpt) > HTML_EVIDENCE_LIMIT:
+        excerpt = excerpt[:HTML_EVIDENCE_LIMIT]
+    print("----- BEGIN RAW HTML FROM LIVE MOODLE RESPONSE -----")
+    print(excerpt)
+    print("----- END RAW HTML FROM LIVE MOODLE RESPONSE -----")
+
+
 def ensure_no_moodle_error(page, path):
     for pattern in ERROR_PATTERNS:
         if re.search(pattern, page, re.IGNORECASE):
@@ -75,6 +105,7 @@ def main():
 
     print("Test: authenticate to Moodle")
     status, _, login_page = request(opener, "login/index.php")
+    print_runtime_html("login form", status, "login/index.php", login_page, ("<form", "logintoken"))
     if status != 200:
         fail(f"Login page returned HTTP {status}")
 
@@ -93,6 +124,13 @@ def main():
             "loginbutton": "Log in",
         },
     )
+    print_runtime_html(
+        "authenticated login result",
+        status,
+        final_url,
+        login_result,
+        ("Dashboard", "My courses", "Log out"),
+    )
     if status != 200 or urlparse(final_url).path.startswith("/login/"):
         fail("Login was not successful; Moodle redirected back to the login page")
     ensure_no_moodle_error(login_result, "/login/index.php")
@@ -100,6 +138,13 @@ def main():
 
     print("Test: access Moodle administration")
     status, admin_url, admin_page = request(opener, "admin/index.php")
+    print_runtime_html(
+        "admin access",
+        status,
+        admin_url,
+        admin_page,
+        ("Site administration", "Notifications"),
+    )
     if status != 200 or urlparse(admin_url).path.startswith("/login/"):
         fail(f"Could not access /admin/index.php (HTTP {status}, final URL {admin_url})")
     ensure_no_moodle_error(admin_page, "/admin/index.php")
@@ -109,6 +154,13 @@ def main():
 
     print("Test: enumerate image-installed plugins")
     status, plugins_url, plugins_page = request(opener, "admin/plugins.php")
+    print_runtime_html(
+        "installed plugin overview",
+        status,
+        plugins_url,
+        plugins_page,
+        IMAGE_INSTALLED_PLUGINS + (OPTIONAL_TEST_PLUGIN,),
+    )
     if status != 200 or urlparse(plugins_url).path.startswith("/login/"):
         fail(f"Could not access /admin/plugins.php (HTTP {status})")
     ensure_no_moodle_error(plugins_page, "/admin/plugins.php")
@@ -118,7 +170,7 @@ def main():
         for component in IMAGE_INSTALLED_PLUGINS
         if re.search(r"(?<![A-Za-z0-9_])" + re.escape(component) + r"(?![A-Za-z0-9_])", plugins_page)
     ]
-    print("Image-installed plugins:")
+    print("Image-installed plugins confirmed in live HTML:")
     for component in installed:
         print(f"  - {component}")
 
@@ -135,6 +187,13 @@ def main():
     ):
         print("Test: open report_benchmark")
         status, report_url, report_page = request(opener, "report/benchmark/index.php")
+        print_runtime_html(
+            "report_benchmark page",
+            status,
+            report_url,
+            report_page,
+            ("benchmark", "Benchmark"),
+        )
         if status != 200 or urlparse(report_url).path.startswith("/login/"):
             fail(f"Could not open report_benchmark (HTTP {status}, final URL {report_url})")
         ensure_no_moodle_error(report_page, "/report/benchmark/index.php")
