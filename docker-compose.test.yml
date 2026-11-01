@@ -26,11 +26,13 @@ services:
       - DB_DBHANDLEOPTIONS=true
       - DB_FETCHBUFFERSIZE=0
       - DB_DBPERSIST=true
+    volumes:
+      - "./tests/verify-installed-plugins.php:/tmp/verify-installed-plugins.php:ro"
     depends_on:
       - postgres
       - redis
       - pgbouncer
-    
+
   postgres:
     image: postgres:17
     environment:
