@@ -15,7 +15,6 @@ BASE_URL = "http://app:8080/"
 USERNAME = os.environ.get("MOODLE_USERNAME", "moodleuser")
 PASSWORD = os.environ.get("MOODLE_PASSWORD", "PLEASE_CHANGEME")
 
-# These plugins are installed by download-moodle-code in every image.
 IMAGE_INSTALLED_PLUGINS = (
     "cachestore_redissentinel",
     "cachestore_memcached",
@@ -24,7 +23,7 @@ OPTIONAL_TEST_PLUGIN = "report_benchmark"
 HTML_EVIDENCE_LIMIT = 1200
 
 ERROR_PATTERNS = (
-    r"Exception\\s*-",
+    r"Exception\s*-",
     r"Coding error detected",
     r"Fatal error",
     r"Parse error",
@@ -33,11 +32,11 @@ ERROR_PATTERNS = (
     r"Error writing to database",
 )
 
-# Never print authentication/session values from the live Moodle response.
+# Redact login tokens, session keys, and credentials before printing response HTML.
 SENSITIVE_INPUT_PATTERN = re.compile(
-    r'(<input\\b(?=[^>]*\\bname\\s*=\\s*["\\']'
-    r'(?:logintoken|sesskey|password|token)[^"\\']*["\\'])[^>]*'
-    r'\\bvalue\\s*=\\s*)["\\'][^"\\']*["\\']',
+    r"(<input\b(?=[^>]*\bname\s*=\s*['\"]"
+    r"(?:logintoken|sesskey|password|token)[^'\"]*['\"])[^>]*"
+    r"\bvalue\s*=\s*)['\"][^'\"]*['\"]",
     re.IGNORECASE,
 )
 
@@ -86,7 +85,7 @@ def print_runtime_html(test_name, status, url, page, markers=()):
             break
     if excerpt is None:
         excerpt = page[:HTML_EVIDENCE_LIMIT]
-    excerpt = SENSITIVE_INPUT_PATTERN.sub(r'\\1"[REDACTED]"', excerpt)
+    excerpt = SENSITIVE_INPUT_PATTERN.sub(r'\1"[REDACTED]"', excerpt)
     if len(excerpt) > HTML_EVIDENCE_LIMIT:
         excerpt = excerpt[:HTML_EVIDENCE_LIMIT]
     print("----- BEGIN RAW HTML FROM LIVE MOODLE RESPONSE -----")
@@ -139,10 +138,7 @@ def main():
     print("Test: access Moodle administration")
     status, admin_url, admin_page = request(opener, "admin/index.php")
     print_runtime_html(
-        "admin access",
-        status,
-        admin_url,
-        admin_page,
+        "admin access", status, admin_url, admin_page,
         ("Site administration", "Notifications"),
     )
     if status != 200 or urlparse(admin_url).path.startswith("/login/"):
@@ -155,10 +151,7 @@ def main():
     print("Test: enumerate image-installed plugins")
     status, plugins_url, plugins_page = request(opener, "admin/plugins.php")
     print_runtime_html(
-        "installed plugin overview",
-        status,
-        plugins_url,
-        plugins_page,
+        "installed plugin overview", status, plugins_url, plugins_page,
         IMAGE_INSTALLED_PLUGINS + (OPTIONAL_TEST_PLUGIN,),
     )
     if status != 200 or urlparse(plugins_url).path.startswith("/login/"):
@@ -179,8 +172,7 @@ def main():
         fail("Expected image-installed plugin(s) missing from Moodle plugin overview: " + ", ".join(missing))
     print("PASS: all image-installed plugins are listed")
 
-    # report_benchmark is added only in the dedicated plugin-install build.
-    # Later update and bind-volume test variants intentionally use images without it.
+    # The optional report plugin is present only in the dedicated plugin-install build.
     if re.search(
         r"(?<![A-Za-z0-9_])" + re.escape(OPTIONAL_TEST_PLUGIN) + r"(?![A-Za-z0-9_])",
         plugins_page,
@@ -188,10 +180,7 @@ def main():
         print("Test: open report_benchmark")
         status, report_url, report_page = request(opener, "report/benchmark/index.php")
         print_runtime_html(
-            "report_benchmark page",
-            status,
-            report_url,
-            report_page,
+            "report_benchmark page", status, report_url, report_page,
             ("benchmark", "Benchmark"),
         )
         if status != 200 or urlparse(report_url).path.startswith("/login/"):
