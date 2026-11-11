@@ -9,7 +9,7 @@ ARG DCRON_VERSION="=4.6-r0"
 # renovate: datasource=apk depName=libcap versioning=loose
 ARG LIBCAP_VERSION="=2.78-r0"
 # renovate: datasource=apk depName=git versioning=loose
-ARG GIT_VERSION="=2.54.0-r0"
+ARG GIT_VERSION="=2.54.1-r0"
 # renovate: datasource=apk depName=bash versioning=loose
 ARG BASH_VERSION="=5.3.9-r1"
 
