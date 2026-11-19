@@ -7,6 +7,7 @@
 # the image, written to the source tree, passed on the command line, or printed.
 
 MARKETPLACE_PLUGIN_DOWNLOADER=/usr/libexec/moodle/marketplace-plugin-download.php
+PLUGIN_ARCHIVE_VALIDATOR=/usr/libexec/moodle/validate-plugin-archive.php
 
 usage() {
     cat 1>&2 <<EOF2
@@ -15,7 +16,8 @@ It requires PHP cli, PHP cURL and unzip.
 
 ENVIRONMENT VARS:
 MOODLE_APP                  path to Moodle code
-MOODLE_PLUGIN_LIST          plugin list separated by comma or space
+MOODLE_PLUGIN_LIST          compatible plugin list separated by comma or space
+MOODLE_PLUGIN_LIST_FORCE    plugin list to force regardless of compatibility/maturity
 MOODLE_RELEASE              Moodle release (ex: '5.0'). Default is read from version.php
 MOODLE_MARKETPLACE_TOKEN_FILE
                             optional path to the Marketplace API token secret
@@ -126,7 +128,7 @@ install_plugin() {
 
     plugin_type=${component%%_*}
     plugin_name=${component#*_}
-    if [ "$plugin_type" = "$component" ] || [ -z "$plugin_name" ]; then
+    if [[ ! "$component" =~ ^[a-z][a-z0-9]*_[a-z][a-z0-9_]*$ ]]; then
         >&2 echo "ERROR: Invalid Moodle plugin component: ${component}"
         exit 1
     fi
@@ -151,8 +153,8 @@ install_plugin() {
         >&2 echo "ERROR: Moodle Marketplace returned an empty plugin archive for ${component}."
         exit 1
     fi
-    if ! unzip -tq "$zip_file" >/dev/null; then
-        >&2 echo "ERROR: Moodle Marketplace returned an invalid ZIP archive for ${component}."
+    if ! php "$PLUGIN_ARCHIVE_VALIDATOR" "$zip_file"; then
+        >&2 echo "ERROR: Moodle Marketplace returned an unsafe or invalid ZIP archive for ${component}."
         exit 1
     fi
 
@@ -169,18 +171,26 @@ install_plugin() {
         exit 1
     fi
 
+    local backup_dir="${tmp_parent}/backup"
+    local backup_moved=false
     if [ -d "$destination" ]; then
-        local backup_dir="${tmp_parent}/backup"
         rm -rf "$backup_dir"
         mkdir -p "$backup_dir"
         echo "Destination directory already exists: ${destination}"
         echo "Moving it to: ${backup_dir}"
         mv "$destination" "$backup_dir/"
+        backup_moved=true
     fi
 
     mkdir -p "$(dirname "$destination")"
     echo "Installing to: ${destination}"
-    mv "$extracted_root" "$destination"
+    if ! mv "$extracted_root" "$destination"; then
+        if [ "$backup_moved" = true ] && [ -d "$backup_dir/$(basename "$destination")" ]; then
+            mv "$backup_dir/$(basename "$destination")" "$destination"
+        fi
+        >&2 echo "ERROR: Failed to install ${component}; previous plugin restored when available."
+        exit 1
+    fi
 }
 
 moodle_plugin_list=${MOODLE_PLUGIN_LIST:-}
