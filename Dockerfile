@@ -13,6 +13,9 @@ ARG GIT_VERSION="=2.54.1-r0"
 # renovate: datasource=apk depName=bash versioning=loose
 ARG BASH_VERSION="=5.3.9-r1"
 
+# Ghostscript is a Moodle-specific runtime dependency for Annotate PDF feedback.
+# Keep it unpinned because Alpine package revisions can differ by architecture.
+
 ARG ARG_WEB_PATH='/var/www/html'
 ENV WEB_PATH=${ARG_WEB_PATH}
 
@@ -29,6 +32,7 @@ RUN apk add --no-cache \
         dcron${DCRON_VERSION} \
         libcap${LIBCAP_VERSION} \
         bash${BASH_VERSION} \
+        ghostscript \
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then apk add --no-cache git${GIT_VERSION}; fi \
     # Always trust the web path to support bind volume of any host path permission
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then git config --system --add safe.directory "${WEB_PATH}"; fi \
@@ -36,7 +40,17 @@ RUN apk add --no-cache \
     && setcap cap_setgid=ep /usr/sbin/crond \
     # Clean up unused files from base image
     && if [ -f "${WEB_PATH}/index.php" ]; then rm ${WEB_PATH}/index.php; fi \
-    && if [ -f "${WEB_PATH}/test.html" ]; then rm ${WEB_PATH}/test.html; fi
+    && if [ -f "${WEB_PATH}/test.html" ]; then rm ${WEB_PATH}/test.html; fi \
+    # Verify Ghostscript can create and render a PDF as the non-privileged runtime user \
+    && su -s /bin/sh -c ' \
+        test "$(command -v gs)" = /usr/bin/gs \
+        && gs --version \
+        && gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=/tmp/ghostscript-smoke.pdf \
+            -c "0 0 moveto (Ghostscript smoke test) show" -c showpage \
+        && test -s /tmp/ghostscript-smoke.pdf \
+        && gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m -sOutputFile=/tmp/ghostscript-smoke.png /tmp/ghostscript-smoke.pdf \
+        && test -s /tmp/ghostscript-smoke.png \
+        && rm -f /tmp/ghostscript-smoke.pdf /tmp/ghostscript-smoke.png' nobody
 
 USER nobody
 
