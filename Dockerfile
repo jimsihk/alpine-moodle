@@ -32,7 +32,12 @@ RUN apk add --no-cache \
         dcron${DCRON_VERSION} \
         libcap${LIBCAP_VERSION} \
         bash${BASH_VERSION} \
-        ghostscript \
+    # Install Ghostscript only on architectures where Alpine publishes the package \
+    && if apk search -x ghostscript | grep -q '^ghostscript-'; then \
+         apk add --no-cache ghostscript; \
+       else \
+         echo "WARNING: Ghostscript is unavailable for Alpine architecture $(apk --print-arch); Annotate PDF will not be available"; \
+       fi \
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then apk add --no-cache git${GIT_VERSION}; fi \
     # Always trust the web path to support bind volume of any host path permission
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then git config --system --add safe.directory "${WEB_PATH}"; fi \
@@ -50,7 +55,8 @@ RUN apk add --no-cache \
         && test -s /tmp/ghostscript-smoke.pdf \
         && gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m -sOutputFile=/tmp/ghostscript-smoke.png /tmp/ghostscript-smoke.pdf \
         && test -s /tmp/ghostscript-smoke.png \
-        && rm -f /tmp/ghostscript-smoke.pdf /tmp/ghostscript-smoke.png' nobody
+        && rm -f /tmp/ghostscript-smoke.pdf /tmp/ghostscript-smoke.png' nobody; \\
+       else echo 'Skipping Ghostscript smoke test: package unavailable on this architecture'; fi
 
 USER nobody
 
