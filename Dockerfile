@@ -28,16 +28,13 @@ COPY --chown=nobody rootfs/ /
 
 # crond needs root, so install dcron and cap package and set the capabilities
 # on dcron binary https://github.com/inter169/systs/blob/master/alpine/crond/README.md
+# Ghostscript is required by Moodle's built-in Annotate PDF feedback plugin.
+# Alpine v3.24 publishes it for all image architectures (x86, x86_64, armhf, aarch64, ppc64le, s390x).
 RUN apk add --no-cache \
         dcron${DCRON_VERSION} \
         libcap${LIBCAP_VERSION} \
         bash${BASH_VERSION} \
-    # Install Ghostscript only on architectures where Alpine publishes the package \
-    && if apk search -x ghostscript | grep -q '^ghostscript-'; then \
-         apk add --no-cache ghostscript; \
-       else \
-         echo "WARNING: Ghostscript is unavailable for Alpine architecture $(apk --print-arch); Annotate PDF will not be available"; \
-       fi \
+        ghostscript \
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then apk add --no-cache git${GIT_VERSION}; fi \
     # Always trust the web path to support bind volume of any host path permission
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then git config --system --add safe.directory "${WEB_PATH}"; fi \
@@ -46,9 +43,8 @@ RUN apk add --no-cache \
     # Clean up unused files from base image
     && if [ -f "${WEB_PATH}/index.php" ]; then rm ${WEB_PATH}/index.php; fi \
     && if [ -f "${WEB_PATH}/test.html" ]; then rm ${WEB_PATH}/test.html; fi \
-    # Verify Ghostscript can create and render a PDF as the non-privileged runtime user \
-    && if command -v gs >/dev/null 2>&1; then \
-         su -s /bin/sh -c ' \
+    # Verify Ghostscript can create and render a PDF as the non-privileged runtime user
+    && su -s /bin/sh -c ' \
         test "$(command -v gs)" = /usr/bin/gs \
         && gs --version \
         && gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=/tmp/ghostscript-smoke.pdf \
@@ -56,10 +52,7 @@ RUN apk add --no-cache \
         && test -s /tmp/ghostscript-smoke.pdf \
         && gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m -sOutputFile=/tmp/ghostscript-smoke.png /tmp/ghostscript-smoke.pdf \
         && test -s /tmp/ghostscript-smoke.png \
-        && rm -f /tmp/ghostscript-smoke.pdf /tmp/ghostscript-smoke.png' nobody; \
-       else \
-         echo 'Skipping Ghostscript smoke test: package unavailable on this architecture'; \
-       fi
+        && rm -f /tmp/ghostscript-smoke.pdf /tmp/ghostscript-smoke.png' nobody
 
 USER nobody
 
