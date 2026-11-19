@@ -56,6 +56,16 @@ try {
     $multipleRoots = $temp . '/multiple-roots.zip';
     makeArchive($multipleRoots, ['plugin/version.php' => '<?php', 'other/file.txt' => 'bad']);
     assertValidation($validator, $multipleRoots, false, 'multiple top-level directories rejected');
+
+    $invalidComponentCommand = escapeshellarg(PHP_BINARY) . ' '
+        . escapeshellarg(__DIR__ . '/marketplace-plugin-download.php')
+        . ' ' . escapeshellarg('mod_../../outside')
+        . ' 5.0 0 false ' . escapeshellarg($temp . '/unused.zip') . ' 2025050100 2>&1';
+    exec($invalidComponentCommand, $componentOutput, $componentStatus);
+    if ($componentStatus === 0 || !str_contains(implode("\n", $componentOutput), 'Invalid Moodle plugin component')) {
+        throw new RuntimeException('plugin component path traversal was not rejected');
+    }
+    echo "PASS: invalid plugin component rejected before network access\n";
 } finally {
     foreach (glob($temp . '/*') ?: [] as $file) {
         @unlink($file);
