@@ -24,6 +24,7 @@ services:
         - ARG_MOODLE_GIT_COMMIT=${ARG_MOODLE_GIT_COMMIT}
         - ARG_MOODLE_GIT_BRANCH=${ARG_MOODLE_GIT_BRANCH}
         - ARG_MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
+        - ARG_MOODLE_PLUGIN_LIST_FORCE=${ARG_MOODLE_PLUGIN_LIST_FORCE:-}
     restart: unless-stopped
     environment:
       - LANG=en_US.UTF-8
@@ -56,6 +57,7 @@ services:
       - AUTO_UPDATE_MOODLE=${AUTO_UPDATE_MOODLE:-false}
       - UPDATE_MOODLE_CODE=${UPDATE_MOODLE_CODE:-false}
       - MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
+      - MOODLE_PLUGIN_LIST_FORCE=${ARG_MOODLE_PLUGIN_LIST_FORCE:-}
     volumes:
       - ${LOCAL_PATH:-./tmpdata}/moodledata:/var/www/moodledata
       - ${LOCAL_PATH:-./tmpdata}/moodlehtml:/var/www/html
