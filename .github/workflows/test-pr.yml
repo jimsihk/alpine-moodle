@@ -106,7 +106,7 @@ jobs:
           export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
           export ARG_MOODLE_PLUGIN_LIST_FORCE='enrol_easy'
           docker compose --file docker-compose.test.yml build --no-cache app
-          docker run --rm --entrypoint /usr/bin/env ${{ needs.prepare.outputs.tag }}-forced-plugin-compatibility php /usr/libexec/moodle/test-plugin-archive-validator
+          docker run --rm --entrypoint /bin/sh ${{ needs.prepare.outputs.tag }}-forced-plugin-compatibility -c 'bash -n /usr/libexec/moodle/install-plugin-list && sh -n /usr/libexec/moodle/download-moodle-plugin && php -l /usr/libexec/moodle/marketplace-plugin-download.php && php -l /usr/libexec/moodle/validate-plugin-archive.php && php -l /usr/libexec/moodle/test-plugin-archive-validator && php /usr/libexec/moodle/test-plugin-archive-validator'
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset ARG_MOODLE_PLUGIN_LIST_FORCE
