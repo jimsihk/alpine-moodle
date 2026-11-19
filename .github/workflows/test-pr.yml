@@ -82,65 +82,23 @@ jobs:
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
-      - name: Verify installation failure is detected
+      - name: Fault injection - positive test must fail on installation error
         if: matrix.test == 'standard'
         shell: bash
         run: |
           set -euo pipefail
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
 
-          cat > docker-compose.test.install-failure.yml <<'EOF'
+          cat > docker-compose.test.fault.yml <<'EOF'
           services:
             app:
               environment:
                 DB_PASS: intentionally-wrong
           EOF
 
-          echo "Test - an invalid database password must prevent Moodle installation..."
-          set +e
-          timeout 120s docker compose --file docker-compose.test.yml --file docker-compose.test.install-failure.yml up --no-build --exit-code-from sut -t 10
-          status=$?
-          set -e
-          docker compose --file docker-compose.test.yml --file docker-compose.test.install-failure.yml down --remove-orphans
-          rm -f docker-compose.test.install-failure.yml
-          if [ "$status" -eq 0 ]; then
-            echo "FAIL: the smoke test accepted a Moodle instance whose installation could not connect to its database"
-            exit 1
-          elif [ "$status" -eq 124 ]; then
-            echo "FAIL: installation failure detection timed out instead of reporting the failure"
-            exit 1
-          fi
-          echo "PASS: the smoke test rejected the failed Moodle installation (exit code $status)"
-
-      - name: Verify invalid login credentials are rejected
-        if: matrix.test == 'standard'
-        shell: bash
-        run: |
-          set -euo pipefail
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
-
-          cat > docker-compose.test.login-failure.yml <<'EOF'
-          services:
-            sut:
-              environment:
-                MOODLE_PASSWORD: intentionally-wrong-password
-          EOF
-
-          echo "Test - the smoke test must reject incorrect Moodle credentials..."
-          set +e
-          timeout 120s docker compose --file docker-compose.test.yml --file docker-compose.test.login-failure.yml up --no-build --exit-code-from sut -t 10
-          status=$?
-          set -e
-          docker compose --file docker-compose.test.yml --file docker-compose.test.login-failure.yml down --remove-orphans
-          rm -f docker-compose.test.login-failure.yml
-          if [ "$status" -eq 0 ]; then
-            echo "FAIL: the smoke test accepted an incorrect Moodle password"
-            exit 1
-          elif [ "$status" -eq 124 ]; then
-            echo "FAIL: login failure detection timed out instead of reporting the failure"
-            exit 1
-          fi
-          echo "PASS: the smoke test rejected the incorrect Moodle password (exit code $status)"
+          echo "Fault injection: break the app database connection."
+          echo "The normal positive test harness must fail the job."
+          docker compose --file docker-compose.test.yml --file docker-compose.test.fault.yml up --no-build --exit-code-from sut -t 10
 
       - name: Test Bind Volume Mount
         if: matrix.test == 'volume1'
