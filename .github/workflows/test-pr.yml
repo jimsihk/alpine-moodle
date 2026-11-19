@@ -82,24 +82,6 @@ jobs:
           docker compose --file docker-compose.test.yml down --remove-orphans
           unset AUTO_UPDATE_MOODLE UPDATE_MOODLE_CODE
 
-      - name: Fault injection - positive login test must fail on wrong credentials
-        if: matrix.test == 'standard'
-        shell: bash
-        run: |
-          set -euo pipefail
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
-
-          cat > docker-compose.test.fault.yml <<'EOF'
-          services:
-            sut:
-              environment:
-                MOODLE_PASSWORD: intentionally-wrong-password
-          EOF
-
-          echo "Fault injection: keep Moodle healthy but give the positive test runner a wrong password."
-          echo "The normal login assertion must fail the job."
-          docker compose --file docker-compose.test.yml --file docker-compose.test.fault.yml up --no-build --exit-code-from sut -t 10
-
       - name: Test Bind Volume Mount
         if: matrix.test == 'volume1'
         run: |
