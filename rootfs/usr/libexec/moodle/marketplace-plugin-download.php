@@ -23,7 +23,10 @@ if (is_readable($tokenFile)) {
 }
 function request(string $url, string $token, ?string $output = null): array {
     $initialHost = strtolower((string)parse_url($url, PHP_URL_HOST));
-    if (parse_url($url, PHP_URL_SCHEME) !== 'https' || $initialHost === '') {
+    $initialPort = (int)(parse_url($url, PHP_URL_PORT) ?: 443);
+    $initialOrigin = $initialHost . ':' . $initialPort;
+    if (parse_url($url, PHP_URL_SCHEME) !== 'https' || $initialHost === ''
+        || parse_url($url, PHP_URL_USER) !== null || parse_url($url, PHP_URL_PASS) !== null) {
         throw new RuntimeException('Marketplace requests must use an HTTPS URL');
     }
 
@@ -32,7 +35,10 @@ function request(string $url, string $token, ?string $output = null): array {
 
     for ($redirect = 0; $redirect <= $maxRedirects; $redirect++) {
         $currentHost = strtolower((string)parse_url($currentUrl, PHP_URL_HOST));
-        if (parse_url($currentUrl, PHP_URL_SCHEME) !== 'https' || $currentHost === '') {
+        $currentPort = (int)(parse_url($currentUrl, PHP_URL_PORT) ?: 443);
+        $currentOrigin = $currentHost . ':' . $currentPort;
+        if (parse_url($currentUrl, PHP_URL_SCHEME) !== 'https' || $currentHost === ''
+            || parse_url($currentUrl, PHP_URL_USER) !== null || parse_url($currentUrl, PHP_URL_PASS) !== null) {
             throw new RuntimeException('Marketplace redirect attempted to use a non-HTTPS URL');
         }
 
@@ -42,7 +48,7 @@ function request(string $url, string $token, ?string $output = null): array {
         ];
         // Never forward the bearer token to a different host. Marketplace download
         // endpoints may redirect to a CDN or object store for the ZIP payload.
-        if ($token !== '' && hash_equals($initialHost, $currentHost)) {
+        if ($token !== '' && hash_equals($initialOrigin, $currentOrigin)) {
             $headers[] = 'Authorization: Bearer ' . $token;
         }
 
