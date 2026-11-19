@@ -15,7 +15,7 @@ Repository: https://github.com/jimsihk/alpine-moodle
 * Built on the lightweight image https://github.com/jimsihk/alpine-php-nginx
 * Smaller container image size (+/-170MB for full version, +/-110MB for slim version)
 * Supports HA installation with multiple type of cache stores (memcached, Redis) and PostgresSQL poolers like PgBouncer
-* Includes Ghostscript for Moodle's built-in Annotate PDF assignment feedback feature
+* Includes Ghostscript for Moodle's built-in Annotate PDF assignment feedback feature on architectures where Alpine packages it
 * Supports also Redis Sentinel as cache stores via plugin https://github.com/catalyst/moodle-cachestore_redissentinel
 * Pre-install Moodle plug-ins at build time with argument `ARG_MOODLE_PLUGIN_LIST`
 * Always up-to-date Moodle version and Alpine packages with Renovate (see below)
@@ -90,7 +90,7 @@ Login on the system using the provided credentials (ENV vars)
 
 ## PDF annotation
 
-The image includes Ghostscript at `/usr/bin/gs` for Moodle's built-in Annotate PDF assignment feedback plugin. Enable the Annotate PDF feedback plugin and verify the Ghostscript path under **Site administration > Plugins > Activity modules > Assignment > Feedback plugins > Annotate PDF**.
+The image installs Ghostscript at `/usr/bin/gs` for Moodle's built-in Annotate PDF assignment feedback plugin on architectures where Alpine provides the package. Enable the Annotate PDF feedback plugin and verify the Ghostscript path under **Site administration > Plugins > Activity modules > Assignment > Feedback plugins > Annotate PDF**. On architectures without an Alpine Ghostscript package, the image build logs a warning and PDF annotation is unavailable unless Ghostscript is added in a custom image.
 
 Ghostscript is installed in this Moodle image rather than the shared `alpine-php-nginx` base image, keeping the generic PHP/NGINX image free of Moodle-specific dependencies.
 
