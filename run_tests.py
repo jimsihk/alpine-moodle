@@ -24,7 +24,7 @@ LOGIN_SUCCESS_MARKERS = ("Log out", "Dashboard", "My courses")
 HTML_EVIDENCE_LIMIT = 1200
 
 ERROR_PATTERNS = (
-    r"Exception\\s*-",
+    r"Exception\s*-",
     r"Coding error detected",
     r"Fatal error",
     r"Parse error",
@@ -35,9 +35,9 @@ ERROR_PATTERNS = (
 
 # Redact login tokens, session keys, and credentials before printing response HTML.
 SENSITIVE_INPUT_PATTERN = re.compile(
-    r"(<input\\b(?=[^>]*\\bname\\s*=\\s*['\\"]"
-    r"(?:logintoken|sesskey|password|token)[^'\\"]*['\\"])[^>]*"
-    r"\\bvalue\\s*=\\s*)['\\"][^'\\"]*['\\"]",
+    r"(<input\b(?=[^>]*\bname\s*=\s*['\"]"
+    r"(?:logintoken|sesskey|password|token)[^'\"]*['\"])[^>]*"
+    r"\bvalue\s*=\s*)['\"][^'\"]*['\"]",
     re.IGNORECASE,
 )
 
@@ -86,7 +86,7 @@ def print_runtime_html(test_name, status, url, page, markers=()):
             break
     if excerpt is None:
         excerpt = page[:HTML_EVIDENCE_LIMIT]
-    excerpt = SENSITIVE_INPUT_PATTERN.sub(r'\\1"[REDACTED]"', excerpt)
+    excerpt = SENSITIVE_INPUT_PATTERN.sub(r'\1"[REDACTED]"', excerpt)
     if len(excerpt) > HTML_EVIDENCE_LIMIT:
         excerpt = excerpt[:HTML_EVIDENCE_LIMIT]
     print("----- BEGIN RAW HTML FROM LIVE MOODLE RESPONSE -----")
