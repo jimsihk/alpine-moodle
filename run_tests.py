@@ -20,10 +20,11 @@ IMAGE_INSTALLED_PLUGINS = (
     "cachestore_memcached",
 )
 OPTIONAL_TEST_PLUGIN = "report_benchmark"
+LOGIN_SUCCESS_MARKERS = ("Log out", "Dashboard", "My courses")
 HTML_EVIDENCE_LIMIT = 1200
 
 ERROR_PATTERNS = (
-    r"Exception\s*-",
+    r"Exception\\s*-",
     r"Coding error detected",
     r"Fatal error",
     r"Parse error",
@@ -34,9 +35,9 @@ ERROR_PATTERNS = (
 
 # Redact login tokens, session keys, and credentials before printing response HTML.
 SENSITIVE_INPUT_PATTERN = re.compile(
-    r"(<input\b(?=[^>]*\bname\s*=\s*['\"]"
-    r"(?:logintoken|sesskey|password|token)[^'\"]*['\"])[^>]*"
-    r"\bvalue\s*=\s*)['\"][^'\"]*['\"]",
+    r"(<input\\b(?=[^>]*\\bname\\s*=\\s*['\\"]"
+    r"(?:logintoken|sesskey|password|token)[^'\\"]*['\\"])[^>]*"
+    r"\\bvalue\\s*=\\s*)['\\"][^'\\"]*['\\"]",
     re.IGNORECASE,
 )
 
@@ -85,7 +86,7 @@ def print_runtime_html(test_name, status, url, page, markers=()):
             break
     if excerpt is None:
         excerpt = page[:HTML_EVIDENCE_LIMIT]
-    excerpt = SENSITIVE_INPUT_PATTERN.sub(r'\1"[REDACTED]"', excerpt)
+    excerpt = SENSITIVE_INPUT_PATTERN.sub(r'\\1"[REDACTED]"', excerpt)
     if len(excerpt) > HTML_EVIDENCE_LIMIT:
         excerpt = excerpt[:HTML_EVIDENCE_LIMIT]
     print("----- BEGIN RAW HTML FROM LIVE MOODLE RESPONSE -----")
@@ -128,11 +129,16 @@ def main():
         status,
         final_url,
         login_result,
-        ("Dashboard", "My courses", "Log out"),
+        LOGIN_SUCCESS_MARKERS,
     )
     if status != 200 or urlparse(final_url).path.startswith("/login/"):
         fail("Login was not successful; Moodle redirected back to the login page")
     ensure_no_moodle_error(login_result, "/login/index.php")
+    if not any(marker.lower() in login_result.lower() for marker in LOGIN_SUCCESS_MARKERS):
+        fail(
+            "Login response did not contain an expected authenticated UI marker "
+            f"({', '.join(LOGIN_SUCCESS_MARKERS)})"
+        )
     print("PASS: Moodle login succeeded")
 
     print("Test: access Moodle administration")
