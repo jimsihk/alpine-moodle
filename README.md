@@ -174,7 +174,9 @@ For a custom plugin image, use the same secret on the `RUN` that invokes `/usr/l
 FROM quay.io/jimsihk/alpine-moodle:latest
 
 ARG ARG_MOODLE_PLUGIN_LIST=''
-ENV MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
+ARG ARG_MOODLE_PLUGIN_LIST_FORCE=''
+ENV MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST} \
+    MOODLE_PLUGIN_LIST_FORCE=${ARG_MOODLE_PLUGIN_LIST_FORCE}
 
 RUN --mount=type=secret,id=MOODLE_MARKETPLACE_TOKEN,required=false,uid=65534,gid=65534,mode=0400 \
     /usr/libexec/moodle/download-moodle-plugin && \
@@ -199,11 +201,11 @@ docker buildx build . -t my_moodle_image:my_tag \
 # Dockerfile.plugins
 FROM quay.io/jimsihk/alpine-moodle:latest
 
-# Install additional plugins, a space/comma separated arg, (optional)
-# Run install-plugin-list with argument "-f" to force install 
-#   if the plugin is not compatible with current Moodle version
+# Compatible plugin list and optional per-plugin forced list
 ARG ARG_MOODLE_PLUGIN_LIST=''
-ENV MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
+ARG ARG_MOODLE_PLUGIN_LIST_FORCE=''
+ENV MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST} \
+    MOODLE_PLUGIN_LIST_FORCE=${ARG_MOODLE_PLUGIN_LIST_FORCE}
 RUN if [ -n "${MOODLE_PLUGIN_LIST}" ]; then /usr/libexec/moodle/install-plugin-list -p "${MOODLE_PLUGIN_LIST}"; fi && \
     rm -rf /tmp/moodle-plugins
 ```
