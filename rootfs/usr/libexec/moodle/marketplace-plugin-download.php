@@ -7,6 +7,9 @@ if ($argc !== 7) {
 }
 
 [, $component, $moodleRelease, $minimumMaturity, $force, $outputZip, $coreVersion] = $argv;
+if (!preg_match('/^[a-z][a-z0-9]*_[a-z][a-z0-9_]*$/', $component)) {
+    throw new RuntimeException('Invalid Moodle plugin component');
+}
 if (!is_numeric($coreVersion)) {
     throw new RuntimeException('Invalid Moodle core version');
 }
@@ -101,6 +104,12 @@ function validatePluginVersion(
     }
 
     try {
+        $validator = __DIR__ . '/validate-plugin-archive.php';
+        exec(sprintf('%s %s %s', escapeshellarg(PHP_BINARY), escapeshellarg($validator), escapeshellarg($zip)), $validationOutput, $validationStatus);
+        if ($validationStatus !== 0) {
+            throw new RuntimeException("{$component} archive failed ZIP path/type validation");
+        }
+
         $command = sprintf(
             'unzip -q %s -d %s',
             escapeshellarg($zip),
@@ -146,8 +155,10 @@ function validatePluginVersion(
             throw new RuntimeException("Invalid Moodle release: {$moodleRelease}");
         }
         $branch = (int)$releaseParts[1] * 100 + (int)$releaseParts[2];
-        if (isset($plugin->requires) && is_numeric($plugin->requires)
-            && (float)$plugin->requires > (float)$coreVersion) {
+        if (!isset($plugin->requires) || !is_numeric($plugin->requires)) {
+            throw new RuntimeException("{$component} version.php does not declare a valid Moodle requires value");
+        }
+        if ((float)$plugin->requires > (float)$coreVersion) {
             echo "Rejected Marketplace build {$plugin->version} for {$component}: requires Moodle {$plugin->requires}, core is {$coreVersion}\n";
             return false;
         }
