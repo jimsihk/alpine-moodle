@@ -16,7 +16,7 @@ Repository: https://github.com/jimsihk/alpine-moodle
 * Smaller container image size (+/-150MB for full version, +/-90MB for slim version)
 * Supports HA installation with multiple type of cache stores (memcached, Redis) and PostgresSQL poolers like PgBouncer
 * Supports also Redis Sentinel as cache stores via plugin https://github.com/catalyst/moodle-cachestore_redissentinel
-* Pre-install Moodle plug-ins at build time with argument `ARG_MOODLE_PLUGIN_LIST`
+* Pre-install Moodle plug-ins at build time with argument `ARG_MOODLE_PLUGIN_LIST`; optionally force selected plugins with `ARG_MOODLE_PLUGIN_LIST_FORCE`
 * Always up-to-date Moodle version and Alpine packages with Renovate (see below)
 * Supports read-only replica of database
 * Multi-arch support: 386, amd64, arm/v7, arm64, ppc64le, s390x
@@ -163,6 +163,7 @@ For a main image build:
 ```bash
 docker buildx build . -t my_moodle_image:my_tag \
     --build-arg ARG_MOODLE_PLUGIN_LIST='mod_attendance,mod_checklist' \
+    --build-arg ARG_MOODLE_PLUGIN_LIST_FORCE='mod_customcert' \
     --secret id=MOODLE_MARKETPLACE_TOKEN,env=MOODLE_MARKETPLACE_TOKEN
 ```
 
@@ -182,7 +183,11 @@ RUN --mount=type=secret,id=MOODLE_MARKETPLACE_TOKEN,required=false,uid=65534,gid
 
 If the secret is not supplied, the installer sends no Authorization header and continues to support public/free Marketplace downloads.
 
-#### `ARG_MOODLE_PLUGIN_LIST`: define the list of plugins
+#### `ARG_MOODLE_PLUGIN_LIST` and `ARG_MOODLE_PLUGIN_LIST_FORCE`: define plugin lists
+
+- `ARG_MOODLE_PLUGIN_LIST` installs plugins with Moodle compatibility and Marketplace maturity checks.
+- `ARG_MOODLE_PLUGIN_LIST_FORCE` is a separate, optional list. Only plugins in this list bypass Marketplace compatibility and maturity filtering; archive structure, component identity, and required Moodle version metadata are still validated. Do not put a plugin in the forced list unless you accept the runtime compatibility risk.
+- Both arguments accept comma- or space-separated Moodle plugin component names.
 - For installing plugins while building the main Dockerfile (slower), use `ARG_MOODLE_PLUGIN_LIST`:
 ```
 docker buildx build . -t my_moodle_image:my_tag \
@@ -220,24 +225,29 @@ docker buildx build . -t my_moodle_image:my_tag \
     --build-arg ARG_MOODLE_PLUGIN_LIST='mod_attendance,mod_checklist,mod_customcert,block_checklist,gradeexport_checklist'
 ```
 
-#### `ARG_ALLOW_INCOMPATIBLE_PLUGIN`: allow installing incompatible plugins 
-- Since v4.2.1.02-2 (402.102.2), `ARG_ALLOW_INCOMPATIBLE_PLUGIN` is also available to easily control if continue the installation of latest available version despite lack of compatibility from maturity, default as `false`:
-```
+#### Force compatibility for selected plugins only
+
+Use the separate `ARG_MOODLE_PLUGIN_LIST_FORCE` argument to bypass Marketplace compatibility and maturity filtering for selected plugins without affecting the normal list:
+
+```bash
 docker buildx build . -t my_moodle_image:my_tag \
-    --build-arg ARG_MOODLE_PLUGIN_LIST='mod_attendance mod_checklist mod_customcert block_checklist gradeexport_checklist' \
-    --build-arg ARG_ALLOW_INCOMPATIBLE_PLUGIN='true'
+    --build-arg ARG_MOODLE_PLUGIN_LIST='mod_attendance,mod_checklist' \
+    --build-arg ARG_MOODLE_PLUGIN_LIST_FORCE='mod_customcert'
 ```
-- Or using a custom `Dockerfile.plugins`:
+
+For a custom `Dockerfile.plugins`:
+
 ```dockerfile
-# Dockerfile.plugins
 FROM quay.io/jimsihk/alpine-moodle:latest
 
-ARG ARG_MOODLE_PLUGIN_LIST='mod_attendance mod_checklist mod_customcert block_checklist gradeexport_checklist'
-ARG ARG_ALLOW_INCOMPATIBLE_PLUGIN='true'
-ENV MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST}
-ENV ALLOW_INCOMPATIBLE_PLUGIN=${ARG_ALLOW_INCOMPATIBLE_PLUGIN}
+ARG ARG_MOODLE_PLUGIN_LIST='mod_attendance,mod_checklist'
+ARG ARG_MOODLE_PLUGIN_LIST_FORCE='mod_customcert'
+ENV MOODLE_PLUGIN_LIST=${ARG_MOODLE_PLUGIN_LIST} \
+    MOODLE_PLUGIN_LIST_FORCE=${ARG_MOODLE_PLUGIN_LIST_FORCE}
 RUN /usr/libexec/moodle/download-moodle-plugin
 ```
+
+The former global `ARG_ALLOW_INCOMPATIBLE_PLUGIN` option is replaced by this per-plugin list, so normal plugins always retain compatibility and maturity checks.
 
 ## Known Issues
 #### <del>Unable to Create/Update Moodle Roles with "Incorrect role short name" (https://github.com/erseco/alpine-moodle/issues/26)</del>
