@@ -22,60 +22,112 @@ if (is_readable($tokenFile)) {
     $token = trim((string)file_get_contents($tokenFile));
 }
 function request(string $url, string $token, ?string $output = null): array {
-    $curl = curl_init($url);
-    if ($curl === false) {
-        throw new RuntimeException('Unable to initialise cURL');
+    $initialHost = strtolower((string)parse_url($url, PHP_URL_HOST));
+    if (parse_url($url, PHP_URL_SCHEME) !== 'https' || $initialHost === '') {
+        throw new RuntimeException('Marketplace requests must use an HTTPS URL');
     }
 
-    $headers = [
-        'Accept: application/json',
-        'User-Agent: alpine-moodle/MarketplacePluginInstaller',
-    ];
-    if ($token !== '') {
-        $headers[] = 'Authorization: Bearer ' . $token;
-    }
+    $currentUrl = $url;
+    $maxRedirects = 5;
 
-    $options = [
-        CURLOPT_RETURNTRANSFER => $output === null,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS => 5,
-        CURLOPT_HTTPHEADER => $headers,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_FAILONERROR => false,
-    ];
-
-    if ($output !== null) {
-        $fp = fopen($output, 'wb');
-        if ($fp === false) {
-            throw new RuntimeException('Unable to open output file');
+    for ($redirect = 0; $redirect <= $maxRedirects; $redirect++) {
+        $currentHost = strtolower((string)parse_url($currentUrl, PHP_URL_HOST));
+        if (parse_url($currentUrl, PHP_URL_SCHEME) !== 'https' || $currentHost === '') {
+            throw new RuntimeException('Marketplace redirect attempted to use a non-HTTPS URL');
         }
-        $options[CURLOPT_FILE] = $fp;
-    }
 
-    curl_setopt_array($curl, $options);
-    $body = curl_exec($curl);
-    $errno = curl_errno($curl);
-    $error = curl_error($curl);
-    $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
-    $effectiveUrl = (string)curl_getinfo($curl, CURLINFO_EFFECTIVE_URL);
-    $contentType = (string)curl_getinfo($curl, CURLINFO_CONTENT_TYPE);
-    curl_close($curl);
-    if (isset($fp) && is_resource($fp)) {
-        fclose($fp);
-    }
+        $headers = [
+            'Accept: application/json',
+            'User-Agent: alpine-moodle/MarketplacePluginInstaller',
+        ];
+        // Never forward the bearer token to a different host. Marketplace download
+        // endpoints may redirect to a CDN or object store for the ZIP payload.
+        if ($token !== '' && hash_equals($initialHost, $currentHost)) {
+            $headers[] = 'Authorization: Bearer ' . $token;
+        }
 
-    if ($errno !== 0) {
-        throw new RuntimeException("Marketplace request failed: {$error}");
-    }
-    if ($status < 200 || $status >= 300) {
+        $curl = curl_init($currentUrl);
+        if ($curl === false) {
+            throw new RuntimeException('Unable to initialise cURL');
+        }
+
+        $location = '';
+        $options = [
+            CURLOPT_RETURNTRANSFER => $output === null,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_HEADERFUNCTION => static function ($curl, string $header) use (&$location): int {
+                if (stripos($header, 'Location:') === 0) {
+                    $location = trim(substr($header, strlen('Location:')));
+                }
+                return strlen($header);
+            },
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_FAILONERROR => false,
+        ];
+
         if ($output !== null) {
-            @unlink($output);
+            $fp = fopen($output, 'wb');
+            if ($fp === false) {
+                curl_close($curl);
+                throw new RuntimeException('Unable to open output file');
+            }
+            $options[CURLOPT_FILE] = $fp;
         }
-        throw new RuntimeException("Marketplace API returned HTTP {$status}");
+
+        curl_setopt_array($curl, $options);
+        $body = curl_exec($curl);
+        $errno = curl_errno($curl);
+        $error = curl_error($curl);
+        $status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        $effectiveUrl = (string)curl_getinfo($curl, CURLINFO_EFFECTIVE_URL);
+        $contentType = (string)curl_getinfo($curl, CURLINFO_CONTENT_TYPE);
+        curl_close($curl);
+        if (isset($fp) && is_resource($fp)) {
+            fclose($fp);
+            unset($fp);
+        }
+
+        if ($errno !== 0) {
+            if ($output !== null) {
+                @unlink($output);
+            }
+            throw new RuntimeException("Marketplace request failed: {$error}");
+        }
+
+        if (in_array($status, [301, 302, 303, 307, 308], true) && $location !== '') {
+            if ($redirect >= $maxRedirects) {
+                if ($output !== null) {
+                    @unlink($output);
+                }
+                throw new RuntimeException('Marketplace request exceeded the redirect limit');
+            }
+            if (str_starts_with($location, '//')) {
+                $location = 'https:' . $location;
+            }
+            if (parse_url($location, PHP_URL_SCHEME) !== 'https'
+                || !is_string(parse_url($location, PHP_URL_HOST))) {
+                if ($output !== null) {
+                    @unlink($output);
+                }
+                throw new RuntimeException('Marketplace redirect must use an absolute HTTPS URL');
+            }
+            $currentUrl = $location;
+            continue;
+        }
+
+        if ($status < 200 || $status >= 300) {
+            if ($output !== null) {
+                @unlink($output);
+            }
+            throw new RuntimeException("Marketplace API returned HTTP {$status}");
+        }
+
+        return [$status, $body, $effectiveUrl, $contentType];
     }
 
-    return [$status, $body, $effectiveUrl, $contentType];
+    throw new RuntimeException('Marketplace request exceeded the redirect limit');
 }
 
 function maturityScore(mixed $value): int {
