@@ -67,7 +67,6 @@ jobs:
           echo "Test - build with plugin list and installing Moodle..."
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
-          export ARG_ALLOW_INCOMPATIBLE_PLUGIN=false
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
 
@@ -92,20 +91,21 @@ jobs:
           echo "Test - Marketplace plugin installation with token..."
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-marketplace-with-token
           export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
-          export ARG_ALLOW_INCOMPATIBLE_PLUGIN=false
           docker compose --file docker-compose.test.yml build --no-cache app
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
 
           echo '#'
           echo '###############################'
-          echo "Test - Plugin installation with forced compatibility..."
+          echo "Test - Plugin installation with per-plugin forced compatibility..."
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-forced-plugin-compatibility
-          export ARG_MOODLE_PLUGIN_LIST='report_benchmark,enrol_easy'
-          export ARG_ALLOW_INCOMPATIBLE_PLUGIN=true
+          export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
+          export ARG_MOODLE_PLUGIN_LIST_FORCE='enrol_easy'
           docker compose --file docker-compose.test.yml build --no-cache app
+          docker run --rm --entrypoint /usr/bin/env ${{ needs.prepare.outputs.tag }}-forced-plugin-compatibility php /usr/libexec/moodle/test-plugin-archive-validator
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
+          unset ARG_MOODLE_PLUGIN_LIST_FORCE
 
       - name: Test Bind Volume Mount
         if: matrix.test == 'volume1'
@@ -118,7 +118,6 @@ jobs:
           export ARG_MOODLE_GIT_BRANCH="$(grep '^ARG\s*ARG_MOODLE_GIT_BRANCH=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
           export ARG_MOODLE_GIT_COMMIT="$(grep '^ARG\s*ARG_MOODLE_GIT_COMMIT=' Dockerfile | cut -d '=' -f 2 | tr -d "'")"
           export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
-          export ARG_ALLOW_INCOMPATIBLE_PLUGIN=false
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}
           docker compose --file docker-compose.test.volume.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.volume.yml down --remove-orphans
@@ -159,7 +158,6 @@ jobs:
           echo "Test - build with plugin list and installing Moodle..."
           export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-slim
           export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
-          export ARG_ALLOW_INCOMPATIBLE_PLUGIN=false
           export ARG_ENABLE_GIT_CLONE=false
           docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
           docker compose --file docker-compose.test.yml down --remove-orphans
