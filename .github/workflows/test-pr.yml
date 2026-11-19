@@ -88,12 +88,16 @@ jobs:
           MOODLE_MARKETPLACE_TOKEN: '${{ secrets.MOODLE_MARKETPLACE_TOKEN }}'
         run: |
           echo '###############################'
-          echo "Test - Marketplace plugin installation with token..."
-          export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-marketplace-with-token
-          export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
-          docker compose --file docker-compose.test.yml build --no-cache app
-          docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
-          docker compose --file docker-compose.test.yml down --remove-orphans
+          if [ -n "${MOODLE_MARKETPLACE_TOKEN:-}" ]; then
+            echo "Test - Marketplace plugin installation with token..."
+            export TEST_IMAGE_NAME=${{ needs.prepare.outputs.tag }}-marketplace-with-token
+            export ARG_MOODLE_PLUGIN_LIST='report_benchmark,theme_moove'
+            docker compose --file docker-compose.test.yml build --no-cache app
+            docker compose --file docker-compose.test.yml up --exit-code-from sut -t 10
+            docker compose --file docker-compose.test.yml down --remove-orphans
+          else
+            echo "::notice::MOODLE_MARKETPLACE_TOKEN is not configured; authenticated Marketplace test skipped. The standard build above tests the no-token path."
+          fi
 
           echo '#'
           echo '###############################'
