@@ -1,0 +1,64 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+$validator = __DIR__ . '/validate-plugin-archive.php';
+$temp = sys_get_temp_dir() . '/moodle-plugin-archive-tests-' . bin2hex(random_bytes(6));
+if (!mkdir($temp, 0700, true)) {
+    throw new RuntimeException('Unable to create test directory');
+}
+
+function makeArchive(string $path, array $entries, ?array $symlink = null): void {
+    $zip = new ZipArchive();
+    if ($zip->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+        throw new RuntimeException('Unable to create test ZIP');
+    }
+    foreach ($entries as $name => $content) {
+        $zip->addFromString($name, $content);
+    }
+    if ($symlink !== null) {
+        $zip->addFromString($symlink[0], 'target');
+        $zip->setExternalAttributesName(
+            $symlink[0],
+            ZipArchive::OPSYS_UNIX,
+            0120777 << 16
+        );
+    }
+    $zip->close();
+}
+
+function assertValidation(string $validator, string $zip, bool $expected, string $case): void {
+    $command = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($validator) . ' ' . escapeshellarg($zip);
+    exec($command, $output, $status);
+    if (($status === 0) !== $expected) {
+        throw new RuntimeException("{$case} failed: " . implode("\n", $output));
+    }
+    echo "PASS: {$case}\n";
+}
+
+try {
+    $valid = $temp . '/valid.zip';
+    makeArchive($valid, ['plugin/' => '', 'plugin/version.php' => '<?php']);
+    assertValidation($validator, $valid, true, 'valid plugin archive');
+
+    $traversal = $temp . '/traversal.zip';
+    makeArchive($traversal, ['plugin/' => '', 'plugin/version.php' => '<?php', 'plugin/../../outside.txt' => 'bad']);
+    assertValidation($validator, $traversal, false, 'path traversal entry rejected');
+
+    $absolute = $temp . '/absolute.zip';
+    makeArchive($absolute, ['plugin/' => '', 'plugin/version.php' => '<?php', '/tmp/outside.txt' => 'bad']);
+    assertValidation($validator, $absolute, false, 'absolute path entry rejected');
+
+    $symlink = $temp . '/symlink.zip';
+    makeArchive($symlink, ['plugin/' => '', 'plugin/version.php' => '<?php'], ['plugin/link' => '']);
+    assertValidation($validator, $symlink, false, 'symbolic link entry rejected');
+
+    $multipleRoots = $temp . '/multiple-roots.zip';
+    makeArchive($multipleRoots, ['plugin/version.php' => '<?php', 'other/file.txt' => 'bad']);
+    assertValidation($validator, $multipleRoots, false, 'multiple top-level directories rejected');
+} finally {
+    foreach (glob($temp . '/*') ?: [] as $file) {
+        @unlink($file);
+    }
+    @rmdir($temp);
+}
