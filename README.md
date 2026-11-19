@@ -90,7 +90,7 @@ Login on the system using the provided credentials (ENV vars)
 
 ## PDF annotation
 
-The image installs Ghostscript at `/usr/bin/gs` for Moodle's built-in Annotate PDF assignment feedback plugin. Alpine v3.24 publishes Ghostscript for all architectures supported by this image. Enable the Annotate PDF feedback plugin and verify the Ghostscript path under **Site administration > Plugins > Activity modules > Assignment > Feedback plugins > Annotate PDF**.
+The image installs Ghostscript at `/usr/bin/gs` for Moodle's built-in Annotate PDF assignment feedback plugin. During startup, the container configures Moodle's `pathtogs` setting to `/usr/bin/gs` using the Moodle CLI, following the same pattern as the `pathtophp` and `pathtodu` settings. Alpine v3.24 publishes Ghostscript for all architectures supported by this image. Enable the Annotate PDF feedback plugin under **Site administration > Plugins > Activity modules > Assignment > Feedback plugins > Annotate PDF**.
 
 Ghostscript is installed in this Moodle image rather than the shared `alpine-php-nginx` base image, keeping the generic PHP/NGINX image free of Moodle-specific dependencies.
 
