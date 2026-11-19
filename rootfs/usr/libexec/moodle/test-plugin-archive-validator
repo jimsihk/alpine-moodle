@@ -14,7 +14,11 @@ function makeArchive(string $path, array $entries, ?array $symlink = null): void
         throw new RuntimeException('Unable to create test ZIP');
     }
     foreach ($entries as $name => $content) {
-        $zip->addFromString($name, $content);
+        if (str_ends_with($name, '/')) {
+            $zip->addEmptyDir(rtrim($name, '/'));
+        } else {
+            $zip->addFromString($name, $content);
+        }
     }
     if ($symlink !== null) {
         $zip->addFromString($symlink[0], 'target');
