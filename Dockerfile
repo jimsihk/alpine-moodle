@@ -13,6 +13,9 @@ ARG GIT_VERSION="=2.54.1-r0"
 # renovate: datasource=apk depName=bash versioning=loose
 ARG BASH_VERSION="=5.3.9-r1"
 
+# renovate: datasource=apk depName=ghostscript versioning=loose
+ARG GHOSTSCRIPT_VERSION="=10.08.0-r0"
+
 ARG ARG_WEB_PATH='/var/www/html'
 ENV WEB_PATH=${ARG_WEB_PATH}
 
@@ -25,10 +28,12 @@ COPY --chown=nobody rootfs/ /
 
 # crond needs root, so install dcron and cap package and set the capabilities
 # on dcron binary https://github.com/inter169/systs/blob/master/alpine/crond/README.md
+# Ghostscript is required by Moodle's built-in Annotate PDF feedback plugin.
 RUN apk add --no-cache \
         dcron${DCRON_VERSION} \
         libcap${LIBCAP_VERSION} \
         bash${BASH_VERSION} \
+        ghostscript${GHOSTSCRIPT_VERSION} \
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then apk add --no-cache git${GIT_VERSION}; fi \
     # Always trust the web path to support bind volume of any host path permission
     && if [ "${ENABLE_GIT_CLONE}" = 'true' ]; then git config --system --add safe.directory "${WEB_PATH}"; fi \
