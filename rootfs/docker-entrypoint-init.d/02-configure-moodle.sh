@@ -164,7 +164,7 @@ if php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/isinstalled.php ; then
     php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/cfg.php --name=pathtodu --set=/usr/bin/du
     # php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/cfg.php --name=aspellpath --set=/usr/bin/aspell
     # php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/cfg.php --name=pathtodot --set=/usr/bin/dot
-    # php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/cfg.php --name=pathtogs --set=/usr/bin/gs
+    php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/cfg.php --name=pathtogs --set=/usr/bin/gs
     # php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/cfg.php --name=pathtopython --set=/usr/bin/python3
     php -d max_input_vars=10000 "${WEB_PATH}"/admin/cli/cfg.php --name=enableblogs --set=0
 

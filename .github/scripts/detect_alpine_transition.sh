@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Detects whether a Renovate PR transitions Alpine to a new major/minor series.
 # Reads: BASE_SHA, HEAD_SHA, PR_AUTHOR, PR_HEAD_REF (env vars)
-# Writes: GITHUB_OUTPUT keys (skip_reason or ready/old_tag/new_tag/old_series/new_series/new_repo)
+# Writes: GITHUB_OUTPUT keys (skip_reason or ready/old_tag/new_tag/old_series/new_series)
 set -euo pipefail
 
 if [ "${PR_AUTHOR}" != 'renovate[bot]' ]; then
@@ -81,4 +81,3 @@ echo "old_tag=${old_tag}" >> "${GITHUB_OUTPUT}"
 echo "new_tag=${new_tag}" >> "${GITHUB_OUTPUT}"
 echo "old_series=${old_series}" >> "${GITHUB_OUTPUT}"
 echo "new_series=${new_series}" >> "${GITHUB_OUTPUT}"
-echo "new_repo=alpine_$(printf '%s' "${new_series}" | tr '.' '_')" >> "${GITHUB_OUTPUT}"
