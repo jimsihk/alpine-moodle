@@ -21,7 +21,7 @@ jobs:
 
       - name: Prepare Meta Data
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302  # v6
         with:
           images: |
             localhost:5000/${{ github.repository }}
@@ -48,15 +48,13 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@v7
-
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - name: Set up QEMU
         if: matrix.test == 'multi'
-        uses: docker/setup-qemu-action@v4
-
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1  # v4
       - name: Set up Docker Buildx
         if: matrix.test == 'multi'
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4
         with:
           driver-opts: network=host
 
@@ -151,7 +149,7 @@ jobs:
 
       - name: Test build multi-arch
         if: matrix.test == 'multi'
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7
         with:
           context: .
           push: true # to local registry
@@ -161,7 +159,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner for PR
         if: matrix.test == 'multi'
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec  # master
         with:
           image-ref: ${{ needs.prepare.outputs.tag }}
           format: 'table'
@@ -172,7 +170,7 @@ jobs:
 
       - name: Run Anchore scan for PR
         if: matrix.test == 'multi'
-        uses: anchore/scan-action@v7
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2  # v7
         id: anchore-scan-pr
         with:
           image: ${{ needs.prepare.outputs.tag }}
@@ -190,6 +188,6 @@ jobs:
           egress-policy: audit
 
       - name: Check necessary test status
-        uses: re-actors/alls-green@release/v1
+        uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35  # release/v1
         with:
           jobs: ${{ toJSON(needs) }}
