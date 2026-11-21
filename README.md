@@ -13,9 +13,8 @@ Repository: https://github.com/jimsihk/alpine-moodle
 
 * Based on official Moodle source https://github.com/moodle/moodle
 * Built on the lightweight image https://github.com/jimsihk/alpine-php-nginx
-* Smaller container image size (+/-170MB for full version, +/-110MB for slim version)
+* Smaller container image size (+/-150MB for full version, +/-90MB for slim version)
 * Supports HA installation with multiple type of cache stores (memcached, Redis) and PostgresSQL poolers like PgBouncer
-* Includes Ghostscript for Moodle's built-in Annotate PDF assignment feedback feature on all published architectures
 * Supports also Redis Sentinel as cache stores via plugin https://github.com/catalyst/moodle-cachestore_redissentinel
 * Pre-install Moodle plug-ins at build time with argument `ARG_MOODLE_PLUGIN_LIST`
 * Always up-to-date Moodle version and Alpine packages with Renovate (see below)
@@ -87,12 +86,6 @@ Login on the system using the provided credentials (ENV vars)
   * execute `generate_ssl_cert.sh` to generate a sample SSL certificate for localhost
   * refer to https://docs.moodle.org/en/Caching for setting up after login or set the `SESSION_CACHE_*` environment variables
   * please note this setup is NOT configured for production use, use it for demonstration only
-
-## PDF annotation
-
-The image installs Ghostscript at `/usr/bin/gs` for Moodle's built-in Annotate PDF assignment feedback plugin. During startup, the container configures Moodle's `pathtogs` setting to `/usr/bin/gs` using the Moodle CLI, following the same pattern as the `pathtophp` and `pathtodu` settings. Alpine v3.24 publishes Ghostscript for all architectures supported by this image. Enable the Annotate PDF feedback plugin under **Site administration > Plugins > Activity modules > Assignment > Feedback plugins > Annotate PDF**.
-
-Ghostscript is installed in this Moodle image rather than the shared `alpine-php-nginx` base image, keeping the generic PHP/NGINX image free of Moodle-specific dependencies.
 
 ## Configuration
 Define the ENV variables in docker-compose.yml file
