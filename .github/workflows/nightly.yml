@@ -23,7 +23,7 @@ jobs:
       packages: write # for docker/build-push-action to store image to package
     runs-on: ubuntu-latest
     steps:
-      - uses: step-security/harden-runner@v2
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c  # v2
         with:
           egress-policy: audit
 
@@ -80,11 +80,11 @@ jobs:
     needs: [scan-nightly-build]
     runs-on: ubuntu-latest
     steps:
-      - uses: step-security/harden-runner@v2
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c  # v2
         with:
           egress-policy: audit
 
-      - uses: actions/delete-package-versions@v5
+      - uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55  # v5
         with:
           owner: 'jimsihk'
           package-name: 'alpine-moodle'
