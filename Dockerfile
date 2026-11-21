@@ -29,7 +29,6 @@ COPY --chown=nobody rootfs/ /
 # crond needs root, so install dcron and cap package and set the capabilities
 # on dcron binary https://github.com/inter169/systs/blob/master/alpine/crond/README.md
 # Ghostscript is required by Moodle's built-in Annotate PDF feedback plugin.
-# Alpine v3.24 publishes it for all image architectures (x86, x86_64, armhf, aarch64, ppc64le, s390x).
 RUN apk add --no-cache \
         dcron${DCRON_VERSION} \
         libcap${LIBCAP_VERSION} \
