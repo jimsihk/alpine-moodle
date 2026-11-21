@@ -28,6 +28,20 @@ jobs:
           tags: |
             type=sha
     
+  test-replica-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Test read replica startup readiness
+        run: bash .github/scripts/test-replica-readiness.sh
+
   test:
     strategy:
       fail-fast: false
@@ -183,6 +197,7 @@ jobs:
     if: always()
     needs: 
       - test
+      - test-replica-readiness
     runs-on: ubuntu-latest
     steps:
       - uses: step-security/harden-runner@v2
