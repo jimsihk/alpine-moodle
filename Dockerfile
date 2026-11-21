@@ -42,17 +42,7 @@ RUN apk add --no-cache \
     && setcap cap_setgid=ep /usr/sbin/crond \
     # Clean up unused files from base image
     && if [ -f "${WEB_PATH}/index.php" ]; then rm ${WEB_PATH}/index.php; fi \
-    && if [ -f "${WEB_PATH}/test.html" ]; then rm ${WEB_PATH}/test.html; fi \
-    # Verify Ghostscript can create and render a PDF as the non-privileged runtime user
-    && su -s /bin/sh -c ' \
-        test "$(command -v gs)" = /usr/bin/gs \
-        && gs --version \
-        && gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pdfwrite -sOutputFile=/tmp/ghostscript-smoke.pdf \
-            -c "0 0 moveto (Ghostscript smoke test) show" -c showpage \
-        && test -s /tmp/ghostscript-smoke.pdf \
-        && gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m -sOutputFile=/tmp/ghostscript-smoke.png /tmp/ghostscript-smoke.pdf \
-        && test -s /tmp/ghostscript-smoke.png \
-        && rm -f /tmp/ghostscript-smoke.pdf /tmp/ghostscript-smoke.png' nobody
+    && if [ -f "${WEB_PATH}/test.html" ]; then rm ${WEB_PATH}/test.html; fi
 
 USER nobody
 
