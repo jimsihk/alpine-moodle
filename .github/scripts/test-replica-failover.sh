@@ -189,7 +189,7 @@ end_section
 
 assert_replica_pgbouncer_stopped() {
   local container_id state
-  container_id="$("${COMPOSE[@]}" ps -q pgbouncer-replica)"
+  container_id="$("${COMPOSE[@]}" ps --all -q pgbouncer-replica)"
   [[ -n "${container_id}" ]] || fail "replica PgBouncer container was not found"
   state="$(docker inspect --format '{{.State.Status}}' "${container_id}")"
   if [[ "${state}" != "exited" ]]; then
