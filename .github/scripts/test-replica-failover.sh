@@ -44,6 +44,8 @@ services:
       retries: 30
 YAML
 
+"${COMPOSE[@]}" config --quiet
+
 export TEST_IMAGE_NAME="${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:replica-failover-test}"
 
 echo "Building Moodle container image..."
@@ -75,7 +77,7 @@ for attempt in $(seq 1 180); do
   sleep 5
 done
 
-"${COMPOSE[@]}" logs app | grep -Fq 'WARNING: Read replica replica:5432 is not reachable; continuing startup with the primary database' \
+"${COMPOSE[@]}" logs app | grep -F 'WARNING: Read replica replica:5432 is not reachable; continuing startup with the primary database' >/dev/null \
   || fail "startup did not log the expected warning for the unavailable replica"
 
 primary_id="$("${COMPOSE[@]}" ps -q postgres)"
