@@ -65,7 +65,7 @@ jobs:
         timeout-minutes: 5
         run: bash .github/scripts/test-replica-readiness.sh
 
-      - name: Verify Moodle homepage and replica recovery routing
+      - name: Verify Moodle homepage and replica recovery through loopback
         if: matrix.test == 'replica-readiness'
         timeout-minutes: 45
         env:
