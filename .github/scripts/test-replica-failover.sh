@@ -105,10 +105,13 @@ assert_moodle_homepage() {
   local description="$1" homepage
   homepage="$("${COMPOSE[@]}" exec -T app wget -q -O - http://127.0.0.1:8080/ 2>/dev/null)" \
     || fail "${description}: Moodle homepage request failed"
-  if ! grep -Fq '>Dockerized_Moodle<' <<< "${homepage}"; then
-    fail "${description}: Moodle homepage marker was missing"
+  if [[ -z "${homepage//[[:space:]]/}" ]]; then
+    fail "${description}: Moodle homepage response HTML was empty"
   fi
-  echo "PASS: ${description}"
+  if ! grep -Fq '>Dockerized_Moodle<' <<< "${homepage}"; then
+    fail "${description}: Moodle homepage response HTML did not contain the expected installed-site marker"
+  fi
+  echo "PASS: ${description} (HTTP request succeeded and expected HTML marker was present)"
 }
 
 assert_read_server() {
@@ -126,11 +129,12 @@ assert_read_server() {
 # Moodle's default replica consistency window is one second. Allow the
 # installation writes to settle before checking that a normal table read uses
 # the replica-aware DML path.
+assert_moodle_homepage "Moodle homepage works with replica unavailable at startup"
 sleep 2
 assert_read_server "${primary_ip}" "Startup with replica unavailable" "primary"
 end_section
 
-section "Start replica PostgreSQL and its dedicated PgBouncer"
+section "Start and prepare replica PostgreSQL"
 "${COMPOSE[@]}" up -d replica
 for attempt in $(seq 1 60); do
   if "${COMPOSE[@]}" exec -T replica pg_isready -U moodledbuser -d moodle >/dev/null 2>&1; then
@@ -141,6 +145,31 @@ for attempt in $(seq 1 60); do
   fi
   sleep 2
 done
+
+"${COMPOSE[@]}" exec -T replica psql -q -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
+  -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public AUTHORIZATION moodledbuser;' \
+  || fail "could not prepare the replica database for restore"
+
+"${COMPOSE[@]}" exec -T postgres pg_dump -U moodledbuser -d moodle --no-owner --no-privileges \
+  | "${COMPOSE[@]}" exec -T replica psql -q -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
+  || fail "could not copy the initialized Moodle database to the replica"
+
+restored_table_count="$("${COMPOSE[@]}" exec -T replica psql -q -t -A -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
+  -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" | tr -d '[:space:]')"
+[[ "${restored_table_count}" =~ ^[0-9]+$ ]] && (( restored_table_count > 0 )) \
+  || fail "replica snapshot restore completed without any public tables"
+
+"${COMPOSE[@]}" exec -T replica psql -q -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
+  -c 'ALTER DATABASE moodle SET default_transaction_read_only = on;' \
+  || fail "could not mark the replica database read-only"
+
+replica_id="$("${COMPOSE[@]}" ps -q replica)"
+replica_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${replica_id}")"
+[[ -n "${replica_ip}" ]] || fail "could not determine the read replica container IP"
+echo "Replica snapshot restored and verified (${restored_table_count} public tables); database marked read-only."
+end_section
+
+section "Start replica PgBouncer after snapshot restore"
 "${COMPOSE[@]}" up -d pgbouncer-replica
 for attempt in $(seq 1 60); do
   if "${COMPOSE[@]}" exec -T app nc -w 1 pgbouncer-replica 5432 </dev/null >/dev/null 2>&1; then
@@ -151,26 +180,10 @@ for attempt in $(seq 1 60); do
   fi
   sleep 1
 done
-
-"${COMPOSE[@]}" exec -T replica psql -q -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
-  -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public AUTHORIZATION moodledbuser;' \
-  || fail "could not prepare the replica database for restore"
-
-"${COMPOSE[@]}" exec -T postgres pg_dump -U moodledbuser -d moodle --no-owner --no-privileges \
-  | "${COMPOSE[@]}" exec -T replica psql -q -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
-  || fail "could not copy the initialized Moodle database to the replica"
-
-"${COMPOSE[@]}" exec -T replica psql -q -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
-  -c 'ALTER DATABASE moodle SET default_transaction_read_only = on;' \
-  || fail "could not mark the replica database read-only"
-
-replica_id="$("${COMPOSE[@]}" ps -q replica)"
-replica_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${replica_id}")"
-[[ -n "${replica_ip}" ]] || fail "could not determine the read replica container IP"
-
 end_section
 
 section "Scenario 2: replica available through its own PgBouncer"
+assert_moodle_homepage "Moodle homepage works after replica snapshot restore and PgBouncer startup"
 assert_read_server "${replica_ip}" "Read routing while replica is healthy through PgBouncer" "replica"
 end_section
 
