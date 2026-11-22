@@ -187,6 +187,10 @@ assert_moodle_homepage "Moodle homepage works after replica snapshot restore and
 assert_read_server "${replica_ip}" "Read routing while replica is healthy through PgBouncer" "replica"
 end_section
 
+replica_pgbouncer_id="$("${COMPOSE[@]}" ps -q pgbouncer-replica)"
+replica_pgbouncer_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${replica_pgbouncer_id}")"
+[[ -n "${replica_pgbouncer_ip}" ]] || fail "could not determine the replica PgBouncer container IP"
+
 assert_replica_pgbouncer_stopped() {
   local container_id state
   container_id="$("${COMPOSE[@]}" ps --all -q pgbouncer-replica)"
@@ -238,6 +242,89 @@ assert_moodle_homepage "Moodle homepage remains available after replica recovery
 assert_read_server "${replica_ip}" "Read routing after replica recovery through PgBouncer" "replica"
 end_section
 
+section "Scenario 5: replica PgBouncer endpoint silently drops TCP connections"
+# Keep the replica DNS record and container alive, but drop packets addressed
+# to PgBouncer. This models a black-holed endpoint rather than a refused port.
+"${COMPOSE[@]}" up -d replica-firewall
+firewall_rule_ready=false
+for attempt in $(seq 1 30); do
+  if "${COMPOSE[@]}" exec -T replica-firewall iptables -C INPUT -p tcp --dport 5432 -j DROP >/dev/null 2>&1; then
+    firewall_rule_ready=true
+    break
+  fi
+  sleep 1
+done
+[[ "${firewall_rule_ready}" == true ]] || fail "replica firewall did not install the TCP DROP rule"
+
+resolved_replica_ip="$("${COMPOSE[@]}" exec -T app php -r 'echo gethostbyname("pgbouncer-replica"), PHP_EOL;' | tr -d '\r')"
+[[ "${resolved_replica_ip}" == "${replica_pgbouncer_ip}" ]] \
+  || fail "replica DNS no longer resolves to the live PgBouncer endpoint (${resolved_replica_ip})"
+
+if "${COMPOSE[@]}" exec -T app nc -w 1 pgbouncer-replica 5432 </dev/null >/dev/null 2>&1; then
+  fail "replica PgBouncer TCP connection unexpectedly succeeded while packets were dropped"
+fi
+echo "PASS: replica DNS still resolves, but TCP connections to its live endpoint time out"
+
+assert_moodle_homepage "Moodle homepage remains available while replica TCP connections are black-holed"
+SECONDS=0
+assert_read_server "${primary_ip}" "Read routing when replica TCP connections are black-holed" "primary"
+if (( SECONDS > 10 )); then
+  fail "Moodle fallback exceeded 10 seconds with the replica endpoint black-holed (${SECONDS}s)"
+fi
+
+"${COMPOSE[@]}" exec -T replica-firewall iptables -D INPUT -p tcp --dport 5432 -j DROP \
+  || fail "could not remove the replica TCP DROP rule"
+"${COMPOSE[@]}" stop replica-firewall >/dev/null \
+  || fail "could not stop the replica firewall helper"
+for attempt in $(seq 1 30); do
+  if "${COMPOSE[@]}" exec -T app nc -w 1 pgbouncer-replica 5432 </dev/null >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "${attempt}" -eq 30 ]]; then
+    fail "replica PgBouncer endpoint did not become reachable after removing the firewall rule"
+  fi
+  sleep 1
+done
+sleep 2
+assert_moodle_homepage "Moodle homepage remains available after replica TCP connectivity recovers"
+assert_read_server "${replica_ip}" "Read routing after replica TCP connectivity recovers" "replica"
+end_section
+
+section "Scenario 6: PgBouncer accepts clients while its PostgreSQL backend is unavailable"
+# Stop only PostgreSQL. PgBouncer remains running and continues accepting TCP
+# connections, but cannot establish a usable server connection for Moodle.
+"${COMPOSE[@]}" stop replica >/dev/null \
+  || fail "could not stop the replica PostgreSQL backend"
+replica_state="$(docker inspect --format '{{.State.Status}}' "${replica_id}")"
+[[ "${replica_state}" == "exited" ]] \
+  || fail "replica PostgreSQL backend should be stopped (state: ${replica_state})"
+"${COMPOSE[@]}" exec -T app nc -w 1 pgbouncer-replica 5432 </dev/null >/dev/null 2>&1 \
+  || fail "PgBouncer frontend stopped accepting TCP connections with its backend unavailable"
+echo "PASS: PgBouncer frontend accepts TCP connections while replica PostgreSQL is stopped"
+
+assert_moodle_homepage "Moodle homepage remains available while PgBouncer has no PostgreSQL backend"
+SECONDS=0
+assert_read_server "${primary_ip}" "Read routing when PgBouncer backend is unavailable" "primary"
+if (( SECONDS > 30 )); then
+  fail "Moodle fallback exceeded 30 seconds while PgBouncer backend was unavailable (${SECONDS}s)"
+fi
+
+"${COMPOSE[@]}" start replica >/dev/null \
+  || fail "could not restart the replica PostgreSQL backend"
+for attempt in $(seq 1 60); do
+  if "${COMPOSE[@]}" exec -T replica pg_isready -U moodledbuser -d moodle >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "${attempt}" -eq 60 ]]; then
+    fail "replica PostgreSQL backend did not recover"
+  fi
+  sleep 2
+done
+sleep 2
+assert_moodle_homepage "Moodle homepage remains available after replica PostgreSQL backend recovers"
+assert_read_server "${replica_ip}" "Read routing after PgBouncer backend recovers" "replica"
+end_section
+
 write_summary
 echo
-echo "Replica failover result: 4/4 scenarios passed."
+echo "Replica failover result: 6/6 scenarios passed."

@@ -34,3 +34,18 @@ services:
       IGNORE_STARTUP_PARAMETERS: options,extra_float_digits
     depends_on:
       - replica
+
+  replica-firewall:
+    image: alpine:3.22
+    network_mode: "service:pgbouncer-replica"
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - pgbouncer-replica
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        apk add --no-cache iptables
+        iptables -I INPUT 1 -p tcp --dport 5432 -j DROP
+        while :; do sleep 3600; done
