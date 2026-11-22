@@ -108,7 +108,7 @@ for attempt in $(seq 1 180); do
 done
 end_section
 
-section "Verify startup warning and primary fallback"
+section "Scenario 1: startup with replica unavailable"
 "${COMPOSE[@]}" logs app | grep -F 'WARNING: Read replica replica:5432 is not reachable; continuing startup with the primary database' >/dev/null \
   || fail "startup did not log the expected warning for the unavailable replica"
 
