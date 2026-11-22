@@ -88,7 +88,7 @@ read_server_ip() {
   "${COMPOSE[@]}" exec -T app php -r '
     define("CLI_SCRIPT", true);
     require "/var/www/html/config.php";
-    $record = $DB->get_record_sql("SELECT inet_server_addr() AS server_addr");
+    $record = $DB->get_record_sql("SELECT inet_server_addr() AS server_addr FROM {course} LIMIT 1");
     if (!$record || empty($record->server_addr)) {
         fwrite(STDERR, "Database query did not return a server address\n");
         exit(1);
@@ -106,6 +106,10 @@ assert_read_server() {
   echo "PASS: ${description} (${actual})"
 }
 
+# Moodle's default replica consistency window is one second. Allow the
+# installation writes to settle before checking that a normal table read uses
+# the replica-aware DML path.
+sleep 2
 assert_read_server "${primary_ip}" "Moodle starts and falls back to the primary while the replica is unavailable"
 
 echo "Starting the read replica and copying the initialized Moodle database..."
