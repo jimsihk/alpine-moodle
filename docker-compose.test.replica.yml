@@ -1,0 +1,36 @@
+services:
+  app:
+    environment:
+      DB_HOST: pgbouncer
+      DB_PORT: "5432"
+      DB_HOST_REPLICA: pgbouncer-replica
+      DB_PORT_REPLICA: "5432"
+      DB_USER_REPLICA: moodledbuser
+      DB_PASS_REPLICA: moodledbpass
+      DB_DBPERSIST: "false"
+    depends_on: []
+
+  replica:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: moodledbpass
+      POSTGRES_USER: moodledbuser
+      POSTGRES_DB: moodle
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moodledbuser -d moodle"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  pgbouncer-replica:
+    image: edoburu/pgbouncer:latest
+    environment:
+      DB_USER: moodledbuser
+      DB_PASSWORD: moodledbpass
+      DB_HOST: replica
+      DB_NAME: moodle
+      AUTH_TYPE: scram-sha-256
+      POOL_MODE: session
+      IGNORE_STARTUP_PARAMETERS: options,extra_float_digits
+    depends_on:
+      - replica
