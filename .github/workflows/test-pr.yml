@@ -65,7 +65,7 @@ jobs:
         timeout-minutes: 5
         run: bash .github/scripts/test-replica-readiness.sh
 
-      - name: Simulate read replica failover with the Moodle container
+      - name: Simulate Moodle read-replica routing and failover in Docker Compose
         if: matrix.test == 'replica-readiness'
         timeout-minutes: 45
         env:
