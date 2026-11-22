@@ -180,7 +180,7 @@ for attempt in $(seq 1 60); do
   fi
   sleep 1
 done
-for setting in "server_connect_timeout = 2" "server_login_retry = 2"; do
+for setting in "server_connect_timeout = 2" "server_login_retry = 2" "query_wait_timeout = 2"; do
   "${COMPOSE[@]}" exec -T pgbouncer-replica grep -Fx "${setting}" /etc/pgbouncer/pgbouncer.ini >/dev/null \
     || fail "replica PgBouncer is missing expected test setting: ${setting}"
 done
@@ -296,8 +296,7 @@ end_section
 
 section "Scenario 6: PgBouncer accepts clients while backend TCP connections are black-holed"
 # Keep PostgreSQL running and resolvable, but silently drop traffic to its
-# port. PgBouncer therefore accepts the client TCP connection while its
-# backend connection cannot be established.
+# port. PgBouncer accepts the client connection, but SQL waits for a backend.
 "${COMPOSE[@]}" up -d replica-backend-firewall
 backend_firewall_ready=false
 for attempt in $(seq 1 30); do
@@ -319,24 +318,25 @@ fi
   || fail "PgBouncer frontend stopped accepting TCP connections while backend traffic was dropped"
 echo "PASS: replica DNS remains resolvable, backend TCP is dropped, and PgBouncer frontend accepts clients"
 
-# A single DB read can fall back, but repeated replica connection attempts
-# make the complete homepage exceed Nginx's FastCGI request timeout. Assert
-# this known limitation explicitly instead of treating it as successful
-# application availability.
+# PgBouncer accepts the client connection, but the SQL read is queued until a
+# backend is available. The test queue timeout makes this failure deterministic.
+SECONDS=0
+if read_server_ip >/dev/null 2>&1; then
+  fail "Moodle DB read unexpectedly succeeded while PgBouncer had no backend connection"
+fi
+if (( SECONDS > 10 )); then
+  fail "Moodle DB read did not fail within 10 seconds while PgBouncer backend was unavailable (${SECONDS}s)"
+fi
+echo "EXPECTED LIMITATION: Moodle DB read fails while PgBouncer accepts clients but cannot reach PostgreSQL"
+
 SECONDS=0
 if "${COMPOSE[@]}" exec -T app wget -q -O - http://127.0.0.1:8080/ >/dev/null 2>&1; then
   fail "Moodle homepage unexpectedly succeeded while PgBouncer could not reach its backend"
 fi
-if (( SECONDS < 50 || SECONDS > 70 )); then
-  fail "Moodle homepage did not fail at the expected FastCGI timeout (elapsed: ${SECONDS}s)"
-fi
-echo "EXPECTED LIMITATION: Moodle homepage timed out after ${SECONDS}s although PgBouncer accepted TCP connections"
-
-SECONDS=0
-assert_read_server "${primary_ip}" "A new Moodle DB read falls back to primary while PgBouncer backend TCP is black-holed" "primary"
 if (( SECONDS > 30 )); then
-  fail "single-query fallback exceeded 30 seconds while PgBouncer backend TCP was black-holed (${SECONDS}s)"
+  fail "Moodle homepage failure exceeded 30 seconds with PgBouncer backend unavailable (${SECONDS}s)"
 fi
+echo "EXPECTED LIMITATION: Moodle homepage request fails while PgBouncer backend TCP is black-holed"
 
 "${COMPOSE[@]}" exec -T replica-backend-firewall iptables -D INPUT -p tcp --dport 5432 -j DROP \
   || fail "could not remove the replica backend TCP DROP rule"

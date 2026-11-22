@@ -36,6 +36,7 @@ services:
       # promptly and Moodle can fall back to the primary database.
       SERVER_CONNECT_TIMEOUT: "2"
       SERVER_LOGIN_RETRY: "2"
+      QUERY_WAIT_TIMEOUT: "2"
     depends_on:
       - replica
 
