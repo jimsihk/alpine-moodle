@@ -118,9 +118,17 @@ for attempt in $(seq 1 60); do
   sleep 2
 done
 
+"${COMPOSE[@]}" exec -T replica psql -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
+  -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public AUTHORIZATION moodledbuser;' \
+  || fail "could not prepare the replica database for restore"
+
 "${COMPOSE[@]}" exec -T postgres pg_dump -U moodledbuser -d moodle --no-owner --no-privileges \
   | "${COMPOSE[@]}" exec -T replica psql -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
   || fail "could not copy the initialized Moodle database to the replica"
+
+"${COMPOSE[@]}" exec -T replica psql -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
+  -c 'ALTER DATABASE moodle SET default_transaction_read_only = on;' \
+  || fail "could not mark the replica database read-only"
 
 replica_id="$("${COMPOSE[@]}" ps -q replica)"
 replica_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${replica_id}")"
