@@ -66,13 +66,14 @@ done
 echo "Starting Moodle while the read replica is absent..."
 "${COMPOSE[@]}" up -d --no-deps app
 
-echo "Waiting for Moodle startup to complete..."
+echo "Waiting for the installed Moodle homepage to become available..."
 for attempt in $(seq 1 180); do
-  if "${COMPOSE[@]}" exec -T app sh -c 'wget -q -O /dev/null http://127.0.0.1:8080/' >/dev/null 2>&1; then
+  if "${COMPOSE[@]}" exec -T app sh -c 'wget -q -O - http://127.0.0.1:8080/' 2>/dev/null \
+    | grep -F '>Dockerized_Moodle<' >/dev/null; then
     break
   fi
   if [[ "${attempt}" -eq 180 ]]; then
-    fail "Moodle did not become available while the replica was absent"
+    fail "Moodle did not finish installation while the replica was absent"
   fi
   sleep 5
 done
