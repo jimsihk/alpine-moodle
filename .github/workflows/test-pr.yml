@@ -28,25 +28,11 @@ jobs:
           tags: |
             type=sha
     
-  test-replica-readiness:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: step-security/harden-runner@v2
-        with:
-          egress-policy: audit
-
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Test read replica startup readiness
-        run: bash .github/scripts/test-replica-readiness.sh
-
   test:
     strategy:
       fail-fast: false
       matrix:
-        test: [standard, slim, multi, volume1, volume2]
+        test: [standard, slim, multi, volume1, volume2, replica-readiness]
     needs:
       - prepare
     runs-on: ubuntu-latest
@@ -73,6 +59,11 @@ jobs:
         uses: docker/setup-buildx-action@v4
         with:
           driver-opts: network=host
+
+      - name: Test read replica startup readiness
+        if: matrix.test == 'replica-readiness'
+        timeout-minutes: 5
+        run: bash .github/scripts/test-replica-readiness.sh
 
       - name: Build and Test
         if: matrix.test == 'standard'
@@ -195,9 +186,8 @@ jobs:
 
   final:
     if: always()
-    needs: 
+    needs:
       - test
-      - test-replica-readiness
     runs-on: ubuntu-latest
     steps:
       - uses: step-security/harden-runner@v2
