@@ -187,16 +187,33 @@ assert_moodle_homepage "Moodle homepage works after replica snapshot restore and
 assert_read_server "${replica_ip}" "Read routing while replica is healthy through PgBouncer" "replica"
 end_section
 
+assert_replica_pgbouncer_stopped() {
+  local container_id state
+  container_id="$("${COMPOSE[@]}" ps -q pgbouncer-replica)"
+  [[ -n "${container_id}" ]] || fail "replica PgBouncer container was not found"
+  state="$(docker inspect --format '{{.State.Status}}' "${container_id}")"
+  if [[ "${state}" != "exited" ]]; then
+    fail "replica PgBouncer must be stopped before continuing; current state: ${state}"
+  fi
+  echo "PASS: replica PgBouncer is stopped (container state: ${state})"
+}
+
 section "Scenario 3: replica PgBouncer becomes unavailable"
-# Take the replica endpoint offline. This verifies Moodle's fallback when the
-# replica connection cannot be established; a live PgBouncer with a failed
-# backend is a different failure mode and is not treated as equivalent here.
-"${COMPOSE[@]}" stop pgbouncer-replica
-assert_moodle_homepage "Moodle homepage remains available during replica PgBouncer outage"
+# Take the replica endpoint offline. Check Moodle while the stop operation is
+# in progress, then wait for Docker to finish stopping PgBouncer before testing
+# fallback or allowing Scenario 4 to begin.
+"${COMPOSE[@]}" stop pgbouncer-replica &
+stop_pgbouncer_pid=$!
+assert_moodle_homepage "Moodle homepage remains available while replica PgBouncer is stopping"
+wait "${stop_pgbouncer_pid}" || fail "could not stop replica PgBouncer"
+assert_replica_pgbouncer_stopped
+assert_moodle_homepage "Moodle homepage remains available after replica PgBouncer stopped"
 assert_read_server "${primary_ip}" "Read routing after replica PgBouncer outage" "primary"
 end_section
 
 section "Scenario 4: replica PgBouncer recovers"
+# Do not begin recovery until Scenario 3 has confirmed the container is stopped.
+assert_replica_pgbouncer_stopped
 # Prove the application remains usable while the replica endpoint is still down.
 assert_moodle_homepage "Moodle homepage remains available while replica recovery is pending"
 assert_read_server "${primary_ip}" "Read routing while replica recovery is pending" "primary"
