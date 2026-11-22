@@ -40,6 +40,8 @@ jobs:
     services:
       registry:
         image: registry:3
+        env:
+          REGISTRY_LOG_LEVEL: warn
         ports:
           - 5000:5000
     steps:
@@ -65,7 +67,7 @@ jobs:
         timeout-minutes: 5
         run: bash .github/scripts/test-replica-readiness.sh
 
-      - name: Verify Moodle homepage and replica recovery through loopback
+      - name: Test Moodle read routing across replica failover
         if: matrix.test == 'db-replica'
         timeout-minutes: 45
         env:
