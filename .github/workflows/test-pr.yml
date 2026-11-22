@@ -65,6 +65,12 @@ jobs:
         timeout-minutes: 5
         run: bash .github/scripts/test-replica-readiness.sh
 
+      - name: Test read replica failover in containers
+        if: matrix.test == 'replica-readiness'
+        env:
+          TEST_IMAGE_NAME: ${{ needs.prepare.outputs.tag }}-replica-test
+        run: bash .github/scripts/test-replica-failover.sh
+
       - name: Build and Test
         if: matrix.test == 'standard'
         run: |
