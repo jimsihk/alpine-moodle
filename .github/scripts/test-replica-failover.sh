@@ -68,7 +68,7 @@ echo "Starting Moodle while the read replica is absent..."
 
 echo "Waiting for the installed Moodle homepage to become available..."
 for attempt in $(seq 1 180); do
-  if "${COMPOSE[@]}" exec -T app sh -c 'wget -q -O - http://app:8080/' 2>/dev/null \
+  if "${COMPOSE[@]}" exec -T app sh -c 'wget -q -O - http://127.0.0.1:8080/' 2>/dev/null \
     | grep -F '>Dockerized_Moodle<' >/dev/null; then
     break
   fi
