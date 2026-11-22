@@ -65,8 +65,9 @@ jobs:
         timeout-minutes: 5
         run: bash .github/scripts/test-replica-readiness.sh
 
-      - name: Test read replica failover in containers
+      - name: Simulate read replica failover with the Moodle container
         if: matrix.test == 'replica-readiness'
+        timeout-minutes: 45
         env:
           TEST_IMAGE_NAME: ${{ needs.prepare.outputs.tag }}-replica-test
         run: bash .github/scripts/test-replica-failover.sh
