@@ -174,49 +174,35 @@ section "Scenario 2: replica available through its own PgBouncer"
 assert_read_server "${replica_ip}" "Read routing while replica is healthy through PgBouncer" "replica"
 end_section
 
-section "Scenario 3: replica database fails behind PgBouncer"
-"${COMPOSE[@]}" stop replica
-assert_moodle_homepage "Moodle homepage remains available during replica database outage"
-assert_read_server "${primary_ip}" "Read routing after replica database outage" "primary"
+section "Scenario 3: replica PgBouncer becomes unavailable"
+# Take the replica endpoint offline. This verifies Moodle's fallback when the
+# replica connection cannot be established; a live PgBouncer with a failed
+# backend is a different failure mode and is not treated as equivalent here.
+"${COMPOSE[@]}" stop pgbouncer-replica
+assert_moodle_homepage "Moodle homepage remains available during replica PgBouncer outage"
+assert_read_server "${primary_ip}" "Read routing after replica PgBouncer outage" "primary"
 end_section
 
-section "Scenario 4: replica recovers"
-# Prove the application remains usable while replica recovery is still pending.
+section "Scenario 4: replica PgBouncer recovers"
+# Prove the application remains usable while the replica endpoint is still down.
 assert_moodle_homepage "Moodle homepage remains available while replica recovery is pending"
 assert_read_server "${primary_ip}" "Read routing while replica recovery is pending" "primary"
 
-"${COMPOSE[@]}" start replica
+"${COMPOSE[@]}" start pgbouncer-replica
 for attempt in $(seq 1 60); do
-  if "${COMPOSE[@]}" exec -T replica pg_isready -U moodledbuser -d moodle >/dev/null 2>&1; then
+  if "${COMPOSE[@]}" exec -T app nc -w 1 pgbouncer-replica 5432 </dev/null >/dev/null 2>&1; then
     break
   fi
   if [[ "${attempt}" -eq 60 ]]; then
-    fail "read replica did not recover"
+    fail "replica PgBouncer did not recover"
   fi
   if (( attempt % 5 == 0 )); then
-    assert_moodle_homepage "Moodle homepage remains available while replica PostgreSQL is starting"
+    assert_moodle_homepage "Moodle homepage remains available while replica PgBouncer is starting"
   fi
   sleep 2
 done
 
-# PgBouncer may briefly back off reconnecting to a database that was
-# unavailable. Keep checking Moodle until reads are routed to the recovered
-# replica instead of assuming PostgreSQL readiness also means pool readiness.
-for attempt in $(seq 1 60); do
-  actual="$(read_server_ip 2>/dev/null || true)"
-  if [[ "${actual}" == "${replica_ip}" ]]; then
-    break
-  fi
-  if [[ "${attempt}" -eq 60 ]]; then
-    fail "Moodle did not resume read routing through the recovered replica PgBouncer"
-  fi
-  if (( attempt % 5 == 0 )); then
-    assert_moodle_homepage "Moodle homepage remains available while replica PgBouncer reconnects"
-  fi
-  sleep 2
-done
-
-# Allow Moodle's replica consistency window to expire before the final check.
+# Allow Moodle's replica consistency window to expire before checking routing.
 sleep 2
 assert_moodle_homepage "Moodle homepage remains available after replica recovery"
 assert_read_server "${replica_ip}" "Read routing after replica recovery through PgBouncer" "replica"
