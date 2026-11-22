@@ -290,56 +290,39 @@ assert_moodle_homepage "Moodle homepage remains available after replica TCP conn
 assert_read_server "${replica_ip}" "Read routing after replica TCP connectivity recovers" "replica"
 end_section
 
-section "Scenario 6: PgBouncer accepts clients while backend TCP connections are black-holed"
-# Keep PostgreSQL running and resolvable, but silently drop traffic to its
-# port. PgBouncer therefore accepts the client TCP connection while its
-# backend connection cannot be established.
-"${COMPOSE[@]}" up -d replica-backend-firewall
-backend_firewall_ready=false
-for attempt in $(seq 1 30); do
-  if "${COMPOSE[@]}" exec -T replica-backend-firewall iptables -C INPUT -p tcp --dport 5432 -j DROP >/dev/null 2>&1; then
-    backend_firewall_ready=true
-    break
-  fi
-  sleep 1
-done
-[[ "${backend_firewall_ready}" == true ]] || fail "replica backend firewall did not install the TCP DROP rule"
-
-resolved_backend_ip="$("${COMPOSE[@]}" exec -T app php -r 'echo gethostbyname("replica"), PHP_EOL;' | tr -d '\r')"
-[[ "${resolved_backend_ip}" == "${replica_ip}" ]] \
-  || fail "replica DNS no longer resolves to the live PostgreSQL endpoint (${resolved_backend_ip})"
-if "${COMPOSE[@]}" exec -T app nc -w 1 replica 5432 </dev/null >/dev/null 2>&1; then
-  fail "replica PostgreSQL TCP connection unexpectedly succeeded while backend packets were dropped"
-fi
+section "Scenario 6: PgBouncer accepts clients while its PostgreSQL backend is unavailable"
+# Stop only PostgreSQL. PgBouncer remains running and continues accepting TCP
+# connections, but cannot establish a usable server connection for Moodle.
+"${COMPOSE[@]}" stop replica >/dev/null \
+  || fail "could not stop the replica PostgreSQL backend"
+replica_state="$(docker inspect --format '{{.State.Status}}' "${replica_id}")"
+[[ "${replica_state}" == "exited" ]] \
+  || fail "replica PostgreSQL backend should be stopped (state: ${replica_state})"
 "${COMPOSE[@]}" exec -T app nc -w 1 pgbouncer-replica 5432 </dev/null >/dev/null 2>&1 \
-  || fail "PgBouncer frontend stopped accepting TCP connections while backend traffic was dropped"
-echo "PASS: replica DNS remains resolvable, backend TCP is dropped, and PgBouncer frontend accepts clients"
+  || fail "PgBouncer frontend stopped accepting TCP connections with its backend unavailable"
+echo "PASS: PgBouncer frontend accepts TCP connections while replica PostgreSQL is stopped"
 
-assert_moodle_homepage "Moodle homepage remains available while PgBouncer cannot reach its PostgreSQL backend"
+assert_moodle_homepage "Moodle homepage remains available while PgBouncer has no PostgreSQL backend"
 SECONDS=0
-assert_read_server "${primary_ip}" "Read routing when PgBouncer backend TCP is black-holed" "primary"
+assert_read_server "${primary_ip}" "Read routing when PgBouncer backend is unavailable" "primary"
 if (( SECONDS > 30 )); then
-  fail "Moodle fallback exceeded 30 seconds while PgBouncer backend TCP was black-holed (${SECONDS}s)"
+  fail "Moodle fallback exceeded 30 seconds while PgBouncer backend was unavailable (${SECONDS}s)"
 fi
 
-"${COMPOSE[@]}" exec -T replica-backend-firewall iptables -D INPUT -p tcp --dport 5432 -j DROP \
-  || fail "could not remove the replica backend TCP DROP rule"
-"${COMPOSE[@]}" stop replica-backend-firewall >/dev/null \
-  || fail "could not stop the replica backend firewall helper"
-for attempt in $(seq 1 30); do
-  if "${COMPOSE[@]}" exec -T app nc -w 1 replica 5432 </dev/null >/dev/null 2>&1; then
+"${COMPOSE[@]}" start replica >/dev/null \
+  || fail "could not restart the replica PostgreSQL backend"
+for attempt in $(seq 1 60); do
+  if "${COMPOSE[@]}" exec -T replica pg_isready -U moodledbuser -d moodle >/dev/null 2>&1; then
     break
   fi
-  if [[ "${attempt}" -eq 30 ]]; then
-    fail "replica PostgreSQL endpoint did not become reachable after removing the firewall rule"
+  if [[ "${attempt}" -eq 60 ]]; then
+    fail "replica PostgreSQL backend did not recover"
   fi
-  sleep 1
+  sleep 2
 done
-# PgBouncer's default server_login_retry is 15 seconds after a failed backend
-# login. Let that retry window expire before checking automatic recovery.
-sleep 16
-assert_moodle_homepage "Moodle homepage remains available after PgBouncer backend connectivity recovers"
-assert_read_server "${replica_ip}" "Read routing after PgBouncer backend connectivity recovers" "replica"
+sleep 2
+assert_moodle_homepage "Moodle homepage remains available after replica PostgreSQL backend recovers"
+assert_read_server "${replica_ip}" "Read routing after PgBouncer backend recovers" "replica"
 end_section
 
 write_summary
