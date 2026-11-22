@@ -15,7 +15,7 @@ jobs:
       tag: ${{ steps.meta.outputs.tags }}
     runs-on: ubuntu-latest
     steps:
-      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c  # v2
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2
         with:
           egress-policy: audit
 
@@ -43,7 +43,7 @@ jobs:
         ports:
           - 5000:5000
     steps:
-      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c  # v2
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2
         with:
           egress-policy: audit
 
@@ -183,7 +183,7 @@ jobs:
       - test
     runs-on: ubuntu-latest
     steps:
-      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c  # v2
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2
         with:
           egress-policy: audit
 
