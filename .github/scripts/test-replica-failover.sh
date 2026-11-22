@@ -8,9 +8,35 @@ COMPOSE=(docker compose --project-name "${PROJECT}" --file "${ROOT_DIR}/docker-c
 
 fail() {
   echo "FAIL: $*" >&2
-  "${COMPOSE[@]}" logs app postgres replica 2>/dev/null || true
+  echo "::group::Recent container logs (last 80 lines per service)"
+  "${COMPOSE[@]}" logs --timestamps --tail=80 app postgres replica 2>/dev/null || true
+  echo "::endgroup::"
   exit 1
 }
+
+declare -a SCENARIO_RESULTS=()
+
+record_summary() {
+  local scenario="$1" expected="$2" actual="$3"
+  SCENARIO_RESULTS+=("${scenario}|${expected}|${actual}")
+}
+
+write_summary() {
+  [[ -n "${GITHUB_STEP_SUMMARY:-}" ]] || return 0
+  {
+    echo "## Moodle database replica failover"
+    echo
+    echo "| Scenario | Expected database | Actual database | Result |"
+    echo "|---|---|---|---|"
+    for result in "${SCENARIO_RESULTS[@]}"; do
+      IFS='|' read -r scenario expected actual <<< "${result}"
+      echo "| ${scenario} | ${expected} | ${actual} | PASS |"
+    done
+  } >> "${GITHUB_STEP_SUMMARY}"
+}
+
+section() { echo "::group::$1"; }
+end_section() { echo "::endgroup::"; }
 
 cleanup() {
   "${COMPOSE[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
@@ -48,10 +74,12 @@ YAML
 
 export TEST_IMAGE_NAME="${TEST_IMAGE_NAME:-jimsihk/alpine-moodle:replica-failover-test}"
 
-echo "Building Moodle container image..."
-"${COMPOSE[@]}" build app
+section "Build Moodle test image"
+echo "Building application image (verbose BuildKit progress suppressed)..."
+"${COMPOSE[@]}" build --quiet app
+end_section
 
-echo "Starting the primary database and Redis..."
+section "Start primary PostgreSQL and Redis"
 "${COMPOSE[@]}" up -d postgres redis
 for attempt in $(seq 1 60); do
   if "${COMPOSE[@]}" exec -T postgres pg_isready -U moodledbuser -d moodle >/dev/null 2>&1; then
@@ -62,11 +90,12 @@ for attempt in $(seq 1 60); do
   fi
   sleep 2
 done
+end_section
 
-echo "Starting Moodle while the read replica is absent..."
+section "Start Moodle without the read replica"
 "${COMPOSE[@]}" up -d --no-deps app
 
-echo "Waiting for the installed Moodle homepage to become available..."
+echo "Waiting for the installed Moodle homepage marker..."
 for attempt in $(seq 1 180); do
   if "${COMPOSE[@]}" exec -T app sh -c 'wget -q -O - http://127.0.0.1:8080/' 2>/dev/null \
     | grep -F '>Dockerized_Moodle<' >/dev/null; then
@@ -77,7 +106,9 @@ for attempt in $(seq 1 180); do
   fi
   sleep 5
 done
+end_section
 
+section "Verify startup warning and primary fallback"
 "${COMPOSE[@]}" logs app | grep -F 'WARNING: Read replica replica:5432 is not reachable; continuing startup with the primary database' >/dev/null \
   || fail "startup did not log the expected warning for the unavailable replica"
 
@@ -99,21 +130,25 @@ read_server_ip() {
 }
 
 assert_read_server() {
-  local expected="$1" description="$2" actual
+  local expected="$1" description="$2" expected_name="$3" actual
   actual="$(read_server_ip)" || fail "${description}: Moodle database read query failed"
   if [[ "${actual}" != "${expected}" ]]; then
-    fail "${description}: expected database server ${expected}, got ${actual}"
+    fail "${description}: expected ${expected_name} database at ${expected}, got ${actual}"
   fi
-  echo "PASS: ${description} (${actual})"
+  echo "PASS: ${description}"
+  echo "  Expected: ${expected_name} (${expected})"
+  echo "  Actual:   ${actual}"
+  record_summary "${description}" "${expected_name} (${expected})" "${actual}"
 }
 
 # Moodle's default replica consistency window is one second. Allow the
 # installation writes to settle before checking that a normal table read uses
 # the replica-aware DML path.
 sleep 2
-assert_read_server "${primary_ip}" "Moodle starts and falls back to the primary while the replica is unavailable"
+assert_read_server "${primary_ip}" "Startup with replica unavailable" "primary"
+end_section
 
-echo "Starting the read replica and copying the initialized Moodle database..."
+section "Start replica and seed its database"
 "${COMPOSE[@]}" up -d replica
 for attempt in $(seq 1 60); do
   if "${COMPOSE[@]}" exec -T replica pg_isready -U moodledbuser -d moodle >/dev/null 2>&1; then
@@ -125,15 +160,15 @@ for attempt in $(seq 1 60); do
   sleep 2
 done
 
-"${COMPOSE[@]}" exec -T replica psql -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
+"${COMPOSE[@]}" exec -T replica psql -q -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
   -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public AUTHORIZATION moodledbuser;' \
   || fail "could not prepare the replica database for restore"
 
 "${COMPOSE[@]}" exec -T postgres pg_dump -U moodledbuser -d moodle --no-owner --no-privileges \
-  | "${COMPOSE[@]}" exec -T replica psql -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
+  | "${COMPOSE[@]}" exec -T replica psql -q -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
   || fail "could not copy the initialized Moodle database to the replica"
 
-"${COMPOSE[@]}" exec -T replica psql -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
+"${COMPOSE[@]}" exec -T replica psql -q -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
   -c 'ALTER DATABASE moodle SET default_transaction_read_only = on;' \
   || fail "could not mark the replica database read-only"
 
@@ -141,13 +176,18 @@ replica_id="$("${COMPOSE[@]}" ps -q replica)"
 replica_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${replica_id}")"
 [[ -n "${replica_ip}" ]] || fail "could not determine the read replica container IP"
 
-assert_read_server "${replica_ip}" "Moodle routes new read queries to the recovered replica"
+end_section
 
-echo "Stopping the read replica to simulate a runtime outage..."
+section "Scenario 2: replica available"
+assert_read_server "${replica_ip}" "Read routing while replica is healthy" "replica"
+end_section
+
+section "Scenario 3: replica fails during runtime"
 "${COMPOSE[@]}" stop replica
-assert_read_server "${primary_ip}" "Moodle falls back to the primary after the replica fails"
+assert_read_server "${primary_ip}" "Read routing after replica outage" "primary"
+end_section
 
-echo "Restarting the read replica to simulate recovery..."
+section "Scenario 4: replica recovers"
 "${COMPOSE[@]}" start replica
 for attempt in $(seq 1 60); do
   if "${COMPOSE[@]}" exec -T replica pg_isready -U moodledbuser -d moodle >/dev/null 2>&1; then
@@ -158,6 +198,9 @@ for attempt in $(seq 1 60); do
   fi
   sleep 2
 done
-assert_read_server "${replica_ip}" "Moodle resumes routing new read queries to the recovered replica"
+assert_read_server "${replica_ip}" "Read routing after replica recovery" "replica"
+end_section
 
-echo "All container-based replica failover scenarios passed."
+write_summary
+echo
+echo "Replica failover result: 4/4 scenarios passed."
