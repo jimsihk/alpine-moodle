@@ -32,8 +32,7 @@ services:
       AUTH_TYPE: scram-sha-256
       POOL_MODE: session
       IGNORE_STARTUP_PARAMETERS: options,extra_float_digits
-      # Bound backend connection attempts so PgBouncer reports failures
-      # promptly and Moodle can fall back to the primary database.
+      # Bound backend connection and query queue waits for this failure-mode test.
       SERVER_CONNECT_TIMEOUT: "2"
       SERVER_LOGIN_RETRY: "2"
       QUERY_WAIT_TIMEOUT: "2"
