@@ -3,13 +3,12 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PROJECT="replica-failover-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
-OVERRIDE_FILE="$(mktemp)"
-COMPOSE=(docker compose --project-name "${PROJECT}" --file "${ROOT_DIR}/docker-compose.test.yml" --file "${OVERRIDE_FILE}")
+COMPOSE=(docker compose --project-name "${PROJECT}" --file "${ROOT_DIR}/docker-compose.test.yml" --file "${ROOT_DIR}/docker-compose.test.replica.yml")
 
 fail() {
   echo "FAIL: $*" >&2
   echo "::group::Recent container logs (last 80 lines per service)"
-  "${COMPOSE[@]}" logs --timestamps --tail=80 app postgres replica 2>/dev/null || true
+  "${COMPOSE[@]}" logs --timestamps --tail=80 app postgres pgbouncer replica pgbouncer-replica 2>/dev/null || true
   echo "::endgroup::"
   exit 1
 }
@@ -40,35 +39,8 @@ end_section() { echo "::endgroup::"; }
 
 cleanup() {
   "${COMPOSE[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
-  rm -f "${OVERRIDE_FILE}"
 }
 trap cleanup EXIT
-
-cat > "${OVERRIDE_FILE}" <<'YAML'
-services:
-  app:
-    environment:
-      DB_HOST: postgres
-      DB_PORT: "5432"
-      DB_HOST_REPLICA: replica
-      DB_PORT_REPLICA: "5432"
-      DB_USER_REPLICA: moodledbuser
-      DB_PASS_REPLICA: moodledbpass
-      DB_DBPERSIST: "false"
-    depends_on: []
-
-  replica:
-    image: postgres:17
-    environment:
-      POSTGRES_PASSWORD: moodledbpass
-      POSTGRES_USER: moodledbuser
-      POSTGRES_DB: moodle
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U moodledbuser -d moodle"]
-      interval: 2s
-      timeout: 2s
-      retries: 30
-YAML
 
 "${COMPOSE[@]}" config --quiet
 
@@ -79,8 +51,8 @@ echo "Building application image (verbose BuildKit progress suppressed)..."
 "${COMPOSE[@]}" build --quiet app
 end_section
 
-section "Start primary PostgreSQL and Redis"
-"${COMPOSE[@]}" up -d postgres redis
+section "Start primary PostgreSQL, PgBouncer and Redis"
+"${COMPOSE[@]}" up -d postgres pgbouncer redis
 for attempt in $(seq 1 60); do
   if "${COMPOSE[@]}" exec -T postgres pg_isready -U moodledbuser -d moodle >/dev/null 2>&1; then
     break
@@ -109,7 +81,7 @@ done
 end_section
 
 section "Scenario 1: startup with replica unavailable"
-"${COMPOSE[@]}" logs app | grep -F 'WARNING: Read replica replica:5432 is not reachable; continuing startup with the primary database' >/dev/null \
+"${COMPOSE[@]}" logs app | grep -F 'WARNING: Read replica pgbouncer-replica:5432 is not reachable; continuing startup with the primary database' >/dev/null \
   || fail "startup did not log the expected warning for the unavailable replica"
 
 primary_id="$("${COMPOSE[@]}" ps -q postgres)"
@@ -127,6 +99,16 @@ read_server_ip() {
     }
     echo $record->server_addr, PHP_EOL;
   ' | tr -d '\r'
+}
+
+assert_moodle_homepage() {
+  local description="$1" homepage
+  homepage="$("${COMPOSE[@]}" exec -T app wget -q -O - http://127.0.0.1:8080/ 2>/dev/null)" \
+    || fail "${description}: Moodle homepage request failed"
+  if ! grep -Fq '>Dockerized_Moodle<' <<< "${homepage}"; then
+    fail "${description}: Moodle homepage marker was missing"
+  fi
+  echo "PASS: ${description}"
 }
 
 assert_read_server() {
@@ -148,7 +130,7 @@ sleep 2
 assert_read_server "${primary_ip}" "Startup with replica unavailable" "primary"
 end_section
 
-section "Start replica and seed its database"
+section "Start replica PostgreSQL and its dedicated PgBouncer"
 "${COMPOSE[@]}" up -d replica
 for attempt in $(seq 1 60); do
   if "${COMPOSE[@]}" exec -T replica pg_isready -U moodledbuser -d moodle >/dev/null 2>&1; then
@@ -158,6 +140,16 @@ for attempt in $(seq 1 60); do
     fail "read replica PostgreSQL did not become ready"
   fi
   sleep 2
+done
+"${COMPOSE[@]}" up -d pgbouncer-replica
+for attempt in $(seq 1 60); do
+  if "${COMPOSE[@]}" exec -T app nc -w 1 pgbouncer-replica 5432 </dev/null >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "${attempt}" -eq 60 ]]; then
+    fail "replica PgBouncer did not become reachable"
+  fi
+  sleep 1
 done
 
 "${COMPOSE[@]}" exec -T replica psql -q -v ON_ERROR_STOP=1 -U moodledbuser -d moodle \
@@ -178,16 +170,21 @@ replica_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPA
 
 end_section
 
-section "Scenario 2: replica available"
-assert_read_server "${replica_ip}" "Read routing while replica is healthy" "replica"
+section "Scenario 2: replica available through its own PgBouncer"
+assert_read_server "${replica_ip}" "Read routing while replica is healthy through PgBouncer" "replica"
 end_section
 
-section "Scenario 3: replica fails during runtime"
+section "Scenario 3: replica database fails behind PgBouncer"
 "${COMPOSE[@]}" stop replica
-assert_read_server "${primary_ip}" "Read routing after replica outage" "primary"
+assert_moodle_homepage "Moodle homepage remains available during replica database outage"
+assert_read_server "${primary_ip}" "Read routing after replica database outage" "primary"
 end_section
 
 section "Scenario 4: replica recovers"
+# Prove the application remains usable while replica recovery is still pending.
+assert_moodle_homepage "Moodle homepage remains available while replica recovery is pending"
+assert_read_server "${primary_ip}" "Read routing while replica recovery is pending" "primary"
+
 "${COMPOSE[@]}" start replica
 for attempt in $(seq 1 60); do
   if "${COMPOSE[@]}" exec -T replica pg_isready -U moodledbuser -d moodle >/dev/null 2>&1; then
@@ -196,9 +193,33 @@ for attempt in $(seq 1 60); do
   if [[ "${attempt}" -eq 60 ]]; then
     fail "read replica did not recover"
   fi
+  if (( attempt % 5 == 0 )); then
+    assert_moodle_homepage "Moodle homepage remains available while replica PostgreSQL is starting"
+  fi
   sleep 2
 done
-assert_read_server "${replica_ip}" "Read routing after replica recovery" "replica"
+
+# PgBouncer may briefly back off reconnecting to a database that was
+# unavailable. Keep checking Moodle until reads are routed to the recovered
+# replica instead of assuming PostgreSQL readiness also means pool readiness.
+for attempt in $(seq 1 60); do
+  actual="$(read_server_ip 2>/dev/null || true)"
+  if [[ "${actual}" == "${replica_ip}" ]]; then
+    break
+  fi
+  if [[ "${attempt}" -eq 60 ]]; then
+    fail "Moodle did not resume read routing through the recovered replica PgBouncer"
+  fi
+  if (( attempt % 5 == 0 )); then
+    assert_moodle_homepage "Moodle homepage remains available while replica PgBouncer reconnects"
+  fi
+  sleep 2
+done
+
+# Allow Moodle's replica consistency window to expire before the final check.
+sleep 2
+assert_moodle_homepage "Moodle homepage remains available after replica recovery"
+assert_read_server "${replica_ip}" "Read routing after replica recovery through PgBouncer" "replica"
 end_section
 
 write_summary
