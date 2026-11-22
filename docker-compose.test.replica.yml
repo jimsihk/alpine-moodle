@@ -32,9 +32,10 @@ services:
       AUTH_TYPE: scram-sha-256
       POOL_MODE: session
       IGNORE_STARTUP_PARAMETERS: options,extra_float_digits
-      # Bound client startup when the backend is unavailable so Moodle can
-      # receive a connection error and fall back to the primary database.
-      CLIENT_LOGIN_TIMEOUT: "5"
+      # Bound backend connection attempts so PgBouncer reports failures
+      # promptly and Moodle can fall back to the primary database.
+      SERVER_CONNECT_TIMEOUT: "2"
+      SERVER_LOGIN_RETRY: "2"
     depends_on:
       - replica
 

@@ -180,6 +180,10 @@ for attempt in $(seq 1 60); do
   fi
   sleep 1
 done
+for setting in "server_connect_timeout = 2" "server_login_retry = 2"; do
+  "${COMPOSE[@]}" exec -T pgbouncer-replica grep -Fx "${setting}" /etc/pgbouncer/pgbouncer.ini >/dev/null \
+    || fail "replica PgBouncer is missing expected test setting: ${setting}"
+done
 end_section
 
 section "Scenario 2: replica available through its own PgBouncer"
@@ -335,9 +339,9 @@ for attempt in $(seq 1 30); do
   fi
   sleep 1
 done
-# PgBouncer's default server_login_retry is 15 seconds after a failed backend
-# login. Let that retry window expire before checking automatic recovery.
-sleep 16
+# The test PgBouncer server_login_retry is two seconds; let it expire before
+# checking automatic recovery.
+sleep 3
 assert_moodle_homepage "Moodle homepage remains available after PgBouncer backend connectivity recovers"
 assert_read_server "${replica_ip}" "Read routing after PgBouncer backend connectivity recovers" "replica"
 end_section
