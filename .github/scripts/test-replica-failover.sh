@@ -89,7 +89,8 @@ primary_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPA
 [[ -n "${primary_ip}" ]] || fail "could not determine the primary database container IP"
 
 read_server_ip() {
-  "${COMPOSE[@]}" exec -T app php -r '
+  # Keep an unresponsive replica/PgBouncer from hanging the regression job.
+  timeout 10 "${COMPOSE[@]}" exec -T app php -r '
     define("CLI_SCRIPT", true);
     require "/var/www/html/config.php";
     $record = $DB->get_record_sql("SELECT inet_server_addr() AS server_addr FROM {course} LIMIT 1");
@@ -330,7 +331,7 @@ fi
 echo "EXPECTED LIMITATION: Moodle DB read fails while PgBouncer accepts clients but cannot reach PostgreSQL"
 
 SECONDS=0
-if "${COMPOSE[@]}" exec -T app wget -q -O - http://127.0.0.1:8080/ >/dev/null 2>&1; then
+if timeout 30 "${COMPOSE[@]}" exec -T app wget -q -O - http://127.0.0.1:8080/ >/dev/null 2>&1; then
   fail "Moodle homepage unexpectedly succeeded while PgBouncer could not reach its backend"
 fi
 if (( SECONDS > 30 )); then
