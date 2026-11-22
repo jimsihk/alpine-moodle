@@ -49,3 +49,18 @@ services:
         apk add --no-cache iptables
         iptables -I INPUT 1 -p tcp --dport 5432 -j DROP
         while :; do sleep 3600; done
+
+  replica-backend-firewall:
+    image: alpine:3.22
+    network_mode: "service:replica"
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - replica
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        apk add --no-cache iptables
+        iptables -I INPUT 1 -p tcp --dport 5432 -j DROP
+        while :; do sleep 3600; done
