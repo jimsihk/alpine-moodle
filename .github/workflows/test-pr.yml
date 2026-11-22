@@ -49,6 +49,7 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
       - name: Set up QEMU
         if: matrix.test == 'multi'
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
@@ -159,7 +160,7 @@ jobs:
 
       - name: Run Trivy vulnerability scanner for PR
         if: matrix.test == 'multi'
-        uses: aquasecurity/trivy-action@38b337fff0a2f984d5be173c99e3f633438167ec # master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ needs.prepare.outputs.tag }}
           format: 'table'
