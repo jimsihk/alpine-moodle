@@ -38,7 +38,7 @@ jobs:
           echo "dryrun: ${{ inputs.dryrun }}"
 
       - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Retrieve Moodle source configration
         id: current_moodle
         run: |
@@ -116,7 +116,7 @@ jobs:
 
       - name: Branch old version
         if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
-        uses: peterjgrainger/action-create-branch@4b81ce657e255acd677cc6c55c9c763654be3aef  # v4.0.0
+        uses: peterjgrainger/action-create-branch@4b81ce657e255acd677cc6c55c9c763654be3aef # v4.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -136,14 +136,14 @@ jobs:
       - name: Generate release token
         if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
         id: generate_release_token
-        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a  # v2
+        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a # v2
         with:
           app_id: ${{ secrets.RELEASE_BOT_APP_ID }}
           private_key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
 
       - name: Create PR
         if: steps.next_moodle.outputs.ready == 'true' && inputs.dryrun != 'true'
-        uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1  # v8
+        uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8
         with:
           token: ${{ steps.generate_release_token.outputs.token }}
           add-paths: Dockerfile,README.md
