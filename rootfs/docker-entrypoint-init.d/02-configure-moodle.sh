@@ -18,24 +18,16 @@ while ! nc -w 1 "$DB_HOST" "$DB_PORT"; do
 done
 echo "$DB_HOST is ready"
 
-# Check that the database replica is available
+# The read replica is optional. Check it once, but never block container
+# startup when it is unavailable; Moodle will fall back to the primary
+# database and can use the replica again on a subsequent database connection.
 if [ -n "$DB_HOST_REPLICA" ]; then
-  if [ -n "$DB_PORT_REPLICA" ]; then
-    echo "Waiting for $DB_HOST_REPLICA:$DB_PORT_REPLICA to be ready"
-    while ! nc -w 1 "$DB_HOST_REPLICA" "$DB_PORT_REPLICA"; do
-        # Show some progress
-        echo -n '.';
-        sleep 1;
-    done
+  REPLICA_PORT="${DB_PORT_REPLICA:-$DB_PORT}"
+  if nc -w 1 "$DB_HOST_REPLICA" "$REPLICA_PORT" </dev/null; then
+    echo "Read replica $DB_HOST_REPLICA:$REPLICA_PORT is reachable"
   else
-    echo "Waiting for $DB_HOST_REPLICA:$DB_PORT to be ready"
-    while ! nc -w 1 "$DB_HOST_REPLICA" "$DB_PORT"; do
-        # Show some progress
-        echo -n '.';
-        sleep 1;
-    done
+    echo "WARNING: Read replica $DB_HOST_REPLICA:$REPLICA_PORT is not reachable; continuing startup with the primary database" >&2
   fi
-  echo "$DB_HOST_REPLICA is ready"
 fi
 # Give it another 3 seconds.
 sleep 3;
