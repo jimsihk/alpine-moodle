@@ -80,7 +80,7 @@ if [ ! -f "${WEB_PATH}"/config.php ]; then
           ;;
       esac
       # shellcheck disable=SC2016
-      sed -i "/require_once/i \\$CFG->site_is_public = $SITE_IS_PUBLIC;" "${WEB_PATH}/config.php"
+      sed -i "/require_once/i \$CFG->site_is_public = $SITE_IS_PUBLIC;" "${WEB_PATH}/config.php"
     fi
 
     # Set extra database settings
