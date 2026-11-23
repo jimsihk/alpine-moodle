@@ -96,6 +96,7 @@ Define the ENV variables in docker-compose.yml file
 | LANGUAGE                    | en_US:en             |                                                                                                                                                                 |
 | SITE_URL                    | http://localhost     | Sets the public site URL                                                                                                                                        |
 | SSLPROXY                    | false                | Disable SSL proxy to avoid site loop. e.g. Cloudflare                                                                                                           |
+| SITE_IS_PUBLIC              | (unset)              | Optionally set Moodle `$CFG->site_is_public` to `true` or `false` in a newly generated `config.php`; leave unset to keep Moodle's default |
 | DB_TYPE                     | pgsql                | mysqli - pgsql - mariadb                                                                                                                                        |
 | DB_HOST                     | postgres             | Database hostname e.g. database container name                                                                                                                  |
 | DB_PORT                     | 5432                 | PostgresSQL=5432 - MySQL/MariaDB=3306                                                                                                                           |
