@@ -70,6 +70,19 @@ if [ ! -f "${WEB_PATH}"/config.php ]; then
         --skip-database \
         --allow-unstable
         
+    # Optionally set whether the site is public. Leave unset to keep Moodle's default.
+    if [ -n "${SITE_IS_PUBLIC:-}" ]; then
+      case "$SITE_IS_PUBLIC" in
+        true|false) ;;
+        *)
+          echo "SITE_IS_PUBLIC must be either 'true' or 'false'" >&2
+          exit 1
+          ;;
+      esac
+      # shellcheck disable=SC2016
+      sed -i "/require_once/i \$CFG->site_is_public = $SITE_IS_PUBLIC;" "${WEB_PATH}/config.php"
+    fi
+
     # Set extra database settings
     if [ -n "$DB_FETCHBUFFERSIZE" ]; then
       # shellcheck disable=SC2016
