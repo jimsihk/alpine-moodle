@@ -1,5 +1,5 @@
 ARG ARCH=quay.io/
-FROM ${ARCH}jimsihk/alpine-php-nginx:84.28.2@sha256:77313d75279ee76a088bb4b794775a0d864aae4c0277060fbc9dce54f6d4535d
+FROM ${ARCH}jimsihk/alpine-php-nginx:84.28.3@sha256:c709f52f8a6b88ae3b6c7e81fb5db4cd641932486880f09b281ff9d67225a988
 
 LABEL Description="Lightweight Moodle container with NGINX & PHP-FPM based on Alpine Linux." \
       Maintainer="99048231+jimsihk@users.noreply.github.com"
