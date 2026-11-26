@@ -11,7 +11,7 @@ services:
     depends_on: []
 
   replica:
-    image: postgres:17
+    image: postgres:19@sha256:4ea94de574c17f0372722806c949757050fbb1cd7648410fe45d6bba275cc00e
     environment:
       POSTGRES_PASSWORD: moodledbpass
       POSTGRES_USER: moodledbuser
