@@ -11,7 +11,7 @@ services:
     depends_on: []
 
   replica:
-    image: postgres:17
+    image: postgres:17@sha256:97fb53376be3e4fb1a8a61421daa69dcc3bf2fa39bda3259f5245f9a455af1a9
     environment:
       POSTGRES_PASSWORD: moodledbpass
       POSTGRES_USER: moodledbuser
@@ -23,7 +23,7 @@ services:
       retries: 30
 
   pgbouncer-replica:
-    image: edoburu/pgbouncer:latest
+    image: edoburu/pgbouncer:latest@sha256:8638aa563607256d3c7440437534195f1066a92b68015d89ae9d6b935b444a6d
     environment:
       DB_USER: moodledbuser
       DB_PASSWORD: moodledbpass
